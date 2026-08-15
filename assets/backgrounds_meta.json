@@ -1,0 +1,44 @@
+[
+  {
+    "id": "template_a",
+    "pageNumber": 1,
+    "image": "assets/backgrounds/template_a.png",
+    "thumbnail": "assets/thumbnails/thumb_template_a.jpg",
+    "aspectRatio": 1.7778
+  },
+  {
+    "id": "template_b",
+    "pageNumber": 2,
+    "image": "assets/backgrounds/template_b.png",
+    "thumbnail": "assets/thumbnails/thumb_template_b.jpg",
+    "aspectRatio": 1.7778
+  },
+  {
+    "id": "template_c",
+    "pageNumber": 3,
+    "image": "assets/backgrounds/template_c.png",
+    "thumbnail": "assets/thumbnails/thumb_template_c.jpg",
+    "aspectRatio": 1.7778
+  },
+  {
+    "id": "template_d",
+    "pageNumber": 4,
+    "image": "assets/backgrounds/template_d.png",
+    "thumbnail": "assets/thumbnails/thumb_template_d.jpg",
+    "aspectRatio": 1.7778
+  },
+  {
+    "id": "template_e",
+    "pageNumber": 5,
+    "image": "assets/backgrounds/template_e.png",
+    "thumbnail": "assets/thumbnails/thumb_template_e.jpg",
+    "aspectRatio": 1.7778
+  },
+  {
+    "id": "template_f",
+    "pageNumber": 6,
+    "image": "assets/backgrounds/template_f.png",
+    "thumbnail": "assets/thumbnails/thumb_template_f.jpg",
+    "aspectRatio": 1.7778
+  }
+]

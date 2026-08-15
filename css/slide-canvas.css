@@ -1,0 +1,265 @@
+/* ==========================================================================
+   SlideMAKER - Slide Canvas, Elements, Selection Handles & Snapping Guides
+   ========================================================================== */
+
+/* Workspace Area Layout */
+#workspace-area {
+  display: flex;
+  flex: 1;
+  width: 100%;
+  height: calc(100vh - var(--header-height) - var(--ribbon-height) - var(--contextual-height));
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+  background-color: var(--bg-app);
+}
+
+/* Center Slide Stage Viewport */
+#slide-viewport {
+  flex: 1;
+  height: 100%;
+  overflow: auto;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+  background: radial-gradient(circle at center, #1e293b 0%, #0f172a 100%);
+}
+
+/* Stage Canvas Scaled Wrapper */
+.slide-stage-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: auto;
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background-color: #ffffff;
+}
+
+/* Stage Canvas (Virtual Slide: 1280 x 720 or 1190 x 842) */
+#slide-stage {
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #ffffff;
+  transform-origin: 0 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+/* Slide Background Layer */
+.slide-background {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Slide Elements Layer */
+#slide-elements-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 1;
+  pointer-events: auto;
+}
+
+/* Individual Slide Element */
+.slide-element {
+  position: absolute;
+  cursor: move;
+  box-sizing: border-box;
+}
+
+.slide-element:hover {
+  outline: 1px dashed rgba(0, 163, 80, 0.6);
+}
+
+.slide-element.is-editing {
+  cursor: text;
+  outline: 2px solid var(--udes-green) !important;
+  box-shadow: 0 0 12px rgba(0, 163, 80, 0.35);
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 4px;
+  z-index: 999 !important;
+}
+
+.slide-element.is-editing .element-inner {
+  user-select: text;
+  outline: none;
+}
+
+.element-inner {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Table Specific Styles */
+.slide-table th, .slide-table td {
+  transition: background-color 0.15s ease;
+}
+.slide-table th:focus, .slide-table td:focus {
+  outline: 2px solid var(--udes-green);
+  background-color: #f0fdf4 !important;
+  color: #0f172a !important;
+}
+
+/* --- Selection Overlay & 8 Resize Handles --- */
+
+#selection-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+.selection-box {
+  position: absolute;
+  border: 1.5px solid var(--udes-green);
+  box-shadow: 0 0 8px rgba(0, 163, 80, 0.35);
+  pointer-events: none;
+  box-sizing: border-box;
+}
+
+.selection-box.multi-selection {
+  border-style: dashed;
+  background: rgba(0, 163, 80, 0.05);
+}
+
+/* 8 Resize Handles */
+.resize-handle {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background-color: #ffffff;
+  border: 2px solid var(--udes-green);
+  border-radius: 2px;
+  pointer-events: auto;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  z-index: 1001;
+}
+
+.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
+.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
+.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
+.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
+.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
+.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
+.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+
+/* Rotation Stem & Handle */
+.rotate-stem {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 1px;
+  height: 20px;
+  background-color: var(--udes-green);
+  pointer-events: none;
+}
+
+.rotate-handle {
+  position: absolute;
+  top: -6px;
+  left: -5px;
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
+  border: 2px solid var(--udes-green);
+  border-radius: 50%;
+  cursor: grab;
+  pointer-events: auto;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.rotate-handle:active {
+  cursor: grabbing;
+  background-color: var(--udes-green);
+}
+
+/* Marquee Selection Box */
+#marquee-box {
+  position: absolute;
+  display: none;
+  border: 1px solid var(--udes-green);
+  background-color: rgba(0, 163, 80, 0.12);
+  pointer-events: none;
+  z-index: 998;
+}
+
+/* Smart Alignment Snapping Guides */
+#alignment-guides {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 999;
+}
+
+.snap-guide {
+  position: absolute;
+  pointer-events: none;
+}
+
+.snap-guide-v {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--udes-lime);
+  box-shadow: 0 0 4px var(--udes-lime);
+}
+
+.snap-guide-h {
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--udes-lime);
+  box-shadow: 0 0 4px var(--udes-lime);
+}
+
+/* Floating Bottom Zoom & View Controls Overlay */
+.stage-floating-controls {
+  position: absolute;
+  bottom: 20px;
+  right: calc(var(--right-inspector-width) + 20px);
+  background: rgba(30, 41, 59, 0.9);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+}
+
+.zoom-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  min-width: 44px;
+  text-align: center;
+}
