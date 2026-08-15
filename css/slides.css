@@ -1,0 +1,458 @@
+/* ==========================================================================
+   SlideMAKER - Slide Engine & UdeS Template Stylesheet
+   Faithful recreation of Université de Sherbrooke Template (template_uds.pdf)
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   Master Slide Elements & Layout Bases (1920x1080 design coordinates)
+   -------------------------------------------------------------------------- */
+
+.slide-canvas {
+  width: 1920px;
+  height: 1080px;
+  position: absolute;
+  top: 0;
+  left: 0;
+  background-color: #ffffff;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Master Top Faculty Header (default: Faculté de génie) */
+.slide-master-faculty {
+  position: absolute;
+  top: 48px;
+  right: 80px;
+  font-family: 'Outfit', 'Inter', sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #007A3D;
+  z-index: 10;
+  pointer-events: auto;
+  user-select: none;
+}
+
+/* On dark or green backgrounds, faculty text is white */
+.slide-layout-2 .slide-master-faculty,
+.slide-layout-3 .slide-master-faculty {
+  color: #ffffff;
+}
+
+/* On header band layouts (5 and 6), faculty header sits inside top green banner */
+.slide-layout-5 .slide-master-faculty,
+.slide-layout-6 .slide-master-faculty {
+  color: #ffffff;
+  top: 36px;
+  right: 80px;
+  font-size: 24px;
+}
+
+/* Master Bottom Right UdeS Logo */
+.slide-master-logo {
+  position: absolute;
+  bottom: 45px;
+  right: 80px;
+  width: 220px;
+  height: auto;
+  z-index: 10;
+  pointer-events: none;
+  user-select: none;
+}
+
+.slide-master-logo img, .slide-master-logo svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 1: Titre / Couverture (Cover Slide)
+   Organic wave curves (UdeS green & purple), title, subtitle
+   -------------------------------------------------------------------------- */
+.slide-layout-1 {
+  background-color: #ffffff;
+}
+
+.slide-layout-1 .layout-bg-graphic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 2: Section Foncée ("Univers en soi")
+   Dark forest green with typographic background pattern & dark green center band
+   -------------------------------------------------------------------------- */
+.slide-layout-2 {
+  background-color: #004B28;
+}
+
+.slide-layout-2 .layout-bg-graphic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 3: Section Verte Éclatante (Vibrant Green Divider)
+   Solid emerald green with white title notch container
+   -------------------------------------------------------------------------- */
+.slide-layout-3 {
+  background-color: #009639;
+}
+
+.slide-layout-3 .layout-bg-graphic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 4: Image & Colonne Verte (Split Photo Slide)
+   Left vertical photo showcase and green decorative wave banner
+   -------------------------------------------------------------------------- */
+.slide-layout-4 {
+  background-color: #ffffff;
+}
+
+.slide-layout-4 .layout-bg-graphic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.slide-layout-4 .slide-master-faculty {
+  top: auto;
+  bottom: 48px;
+  left: 80px;
+  right: auto;
+  font-size: 22px;
+  color: #007A3D;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 5 & 6: Contenu avec Bannière Verte Supérieure (Standard Content)
+   -------------------------------------------------------------------------- */
+.slide-layout-5, .slide-layout-6 {
+  background-color: #ffffff;
+}
+
+.slide-layout-5 .layout-bg-graphic,
+.slide-layout-6 .layout-bg-graphic {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1920px;
+  height: 1080px;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Layout 7: Vierge / Personnalisé (Blank Canvas)
+   -------------------------------------------------------------------------- */
+.slide-layout-7 {
+  background-color: #ffffff;
+}
+
+/* --------------------------------------------------------------------------
+   Interactive Canvas Slide Elements & Manipulations
+   -------------------------------------------------------------------------- */
+
+.slide-elements-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
+}
+
+.slide-element {
+  position: absolute;
+  box-sizing: border-box;
+  cursor: move;
+  user-select: none;
+  outline: none;
+}
+
+/* Selected Element Bounding Box */
+.slide-element.selected {
+  outline: 2px solid #3b82f6 !important;
+}
+
+.slide-element.multi-selected {
+  outline: 2px dashed #60a5fa !important;
+}
+
+.slide-element.locked {
+  cursor: default;
+}
+
+/* Transform Resize Handles (8-Points) */
+.resize-handle {
+  position: absolute;
+  width: 12px;
+  height: 12px;
+  background-color: #ffffff;
+  border: 2px solid #3b82f6;
+  border-radius: 2px;
+  display: none;
+  z-index: 100;
+}
+
+.slide-element.selected .resize-handle {
+  display: block;
+}
+
+.handle-nw { top: -6px; left: -6px; cursor: nwse-resize; }
+.handle-n  { top: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+.handle-ne { top: -6px; right: -6px; cursor: nesw-resize; }
+.handle-e  { top: calc(50% - 6px); right: -6px; cursor: ew-resize; }
+.handle-se { bottom: -6px; right: -6px; cursor: nwse-resize; }
+.handle-s  { bottom: -6px; left: calc(50% - 6px); cursor: ns-resize; }
+.handle-sw { bottom: -6px; left: -6px; cursor: nesw-resize; }
+.handle-w  { top: calc(50% - 6px); left: -6px; cursor: ew-resize; }
+
+/* Rotation Handle */
+.rotate-handle {
+  position: absolute;
+  top: -28px;
+  left: calc(50% - 7px);
+  width: 14px;
+  height: 14px;
+  background-color: #3b82f6;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  display: none;
+  cursor: grab;
+  z-index: 100;
+}
+
+.rotate-line {
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  height: 20px;
+  width: 1px;
+  background-color: #3b82f6;
+  display: none;
+}
+
+.slide-element.selected .rotate-handle,
+.slide-element.selected .rotate-line {
+  display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Element Specific Content Types
+   -------------------------------------------------------------------------- */
+
+/* 1. Text Element */
+.element-text-content {
+  width: 100%;
+  height: 100%;
+  outline: none;
+  word-break: break-word;
+  white-space: pre-wrap;
+  cursor: text;
+  line-height: 1.35;
+}
+
+.element-text-content:focus {
+  cursor: text;
+}
+
+/* Bullet list typography styling */
+.uds-bullet-list {
+  list-style: none;
+  padding-left: 0;
+  margin: 0;
+}
+
+.uds-bullet-list > li {
+  position: relative;
+  padding-left: 36px;
+  margin-bottom: 24px;
+  line-height: 1.4;
+}
+
+.uds-bullet-list > li::before {
+  content: "•";
+  position: absolute;
+  left: 8px;
+  top: -2px;
+  color: var(--uds-green-emerald);
+  font-size: 1.3em;
+  font-weight: bold;
+}
+
+.uds-bullet-list > li.level-2 {
+  padding-left: 72px;
+  font-size: 0.88em;
+  opacity: 0.9;
+  margin-bottom: 16px;
+}
+
+.uds-bullet-list > li.level-2::before {
+  content: "–";
+  left: 44px;
+  color: var(--uds-green-light);
+}
+
+/* 2. Image Element */
+.element-image-content {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  pointer-events: none;
+}
+
+.element-image-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.image-replace-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.4);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  z-index: 10;
+  backdrop-filter: blur(2px);
+}
+
+.slide-element.selected .image-replace-overlay {
+  display: flex;
+}
+
+/* 3. Shape Elements */
+.element-shape-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shape-rect {
+  width: 100%;
+  height: 100%;
+  background-color: #009639;
+  border-radius: 8px;
+}
+
+.shape-circle {
+  width: 100%;
+  height: 100%;
+  background-color: #007A3D;
+  border-radius: 50%;
+}
+
+.shape-badge {
+  padding: 12px 24px;
+  border-radius: 9999px;
+  background-color: #82C341;
+  color: #ffffff;
+  font-weight: bold;
+}
+
+/* 4. Table Element */
+.element-table-content {
+  width: 100%;
+  height: 100%;
+  border-collapse: collapse;
+  font-family: inherit;
+}
+
+.element-table-content th,
+.element-table-content td {
+  border: 2px solid #e2e8f0;
+  padding: 12px 18px;
+  text-align: left;
+  outline: none;
+}
+
+.element-table-content th {
+  background-color: #007A3D;
+  color: #ffffff;
+  font-weight: 700;
+}
+
+.element-table-content tr:nth-child(even) td {
+  background-color: #f8fafc;
+}
+
+/* 5. Chart Element */
+.element-chart-wrapper {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* 6. Icon Element */
+.element-icon-content {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #007A3D;
+}
+
+.element-icon-content svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* 7. Code Block Element */
+.element-code-content {
+  width: 100%;
+  height: 100%;
+  background-color: #1e222b;
+  color: #f8f8f2;
+  font-family: 'Fira Code', 'Courier New', monospace;
+  font-size: 20px;
+  padding: 24px;
+  border-radius: 12px;
+  overflow: auto;
+  border: 1px solid #333a48;
+}

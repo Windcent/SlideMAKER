@@ -1,0 +1,245 @@
+/* ==========================================================================
+   SlideMAKER - Presenter Mode & Interactive Slideshow Engine
+   Google Slides-style fullscreen player, laser pointer, pen annotations
+   ========================================================================== */
+
+#presentation-layer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #000000;
+  z-index: 99999;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  user-select: none;
+}
+
+#presentation-layer.active {
+  display: flex;
+}
+
+.presentation-stage-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.presentation-slide-scaler {
+  width: 1920px;
+  height: 1080px;
+  position: relative;
+  background-color: #ffffff;
+  transform-origin: center center;
+  box-shadow: 0 0 50px rgba(0, 0, 0, 0.8);
+}
+
+/* Slide Transition Animations */
+.presentation-slide-scaler {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.presentation-slide-scaler.transition-fade {
+  animation: slideFadeIn 0.3s ease-out forwards;
+}
+
+@keyframes slideFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Live Annotation Canvas (Pen / Highlighter) */
+#presenter-drawing-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+#presenter-drawing-canvas.pen-active {
+  pointer-events: auto;
+  cursor: crosshair;
+}
+
+/* Interactive Laser Pointer */
+#presenter-laser-pointer {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #ff3366 0%, rgba(255, 51, 102, 0.8) 50%, rgba(255, 51, 102, 0) 100%);
+  box-shadow: 0 0 12px #ff3366, 0 0 24px #ff3366;
+  pointer-events: none;
+  z-index: 2000;
+  display: none;
+  transform: translate(-50%, -50%);
+  mix-blend-mode: screen;
+}
+
+/* Floating Presenter Control HUD (Auto-hides on inactivity) */
+.presenter-hud {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%) translateY(0);
+  background-color: rgba(23, 26, 33, 0.88);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 30px;
+  padding: 6px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 3000;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  opacity: 1;
+}
+
+.presenter-hud.hud-hidden {
+  opacity: 0;
+  transform: translateX(-50%) translateY(40px);
+  pointer-events: none;
+}
+
+.hud-btn {
+  background: transparent;
+  border: none;
+  color: #d8dee9;
+  font-size: 16px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.hud-btn:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  transform: scale(1.08);
+}
+
+.hud-btn.active {
+  background-color: var(--uds-green-emerald);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 150, 57, 0.6);
+}
+
+.hud-counter {
+  font-size: 13px;
+  font-weight: 600;
+  color: #eceff4;
+  padding: 0 6px;
+  min-width: 60px;
+  text-align: center;
+}
+
+.hud-divider {
+  width: 1px;
+  height: 20px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Presenter View Mode (Dual Screen Window / Overlay) */
+#presenter-view-window {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: #171a21;
+  z-index: 100000;
+  display: none;
+  flex-direction: column;
+  color: #eceff4;
+}
+
+#presenter-view-window.active {
+  display: flex;
+}
+
+.pv-header {
+  height: 50px;
+  background-color: #1e222b;
+  border-bottom: 1px solid #333a48;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+}
+
+.pv-timer-display {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--uds-green-light);
+}
+
+.pv-body {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  padding: 20px;
+  gap: 20px;
+  overflow: hidden;
+}
+
+.pv-current-slide-frame {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pv-preview-container {
+  flex: 1;
+  background-color: #000000;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+}
+
+.pv-next-and-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.pv-next-preview {
+  height: 180px;
+  background-color: #000000;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pv-notes-box {
+  flex: 1;
+  background-color: #242933;
+  border-radius: 8px;
+  padding: 16px;
+  border: 1px solid #333a48;
+  overflow-y: auto;
+  font-size: 16px;
+  line-height: 1.6;
+}
