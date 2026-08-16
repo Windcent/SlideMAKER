@@ -79,13 +79,6 @@ const CONFIG = {
       image: 'assets/backgrounds/template_e.png',
       thumbnail: 'assets/thumbnails/thumb_template_e.jpg',
       aspectRatio: 1.7778
-    },
-    {
-      id: 'template_f',
-      pageNumber: 6,
-      image: 'assets/backgrounds/template_f.png',
-      thumbnail: 'assets/thumbnails/thumb_template_f.jpg',
-      aspectRatio: 1.7778
     }
   ],
 

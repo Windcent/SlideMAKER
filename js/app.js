@@ -518,16 +518,16 @@ class SlideMakerApp {
           </button>
         </div>
         <div class="prop-field">
-          <label>Shadow Blur (<span id="lbl-val-shadow-blur">${el.shadowBlur || 0}px</span>)</label>
-          <input type="range" id="prop-shadow-blur" min="0" max="50" value="${el.shadowBlur || 0}" class="prop-range">
+          <label>Shadow Blur (<span id="lbl-val-shadow-blur">${Math.min(20, el.shadowBlur || 0)}px</span>)</label>
+          <input type="range" id="prop-shadow-blur" min="0" max="20" value="${Math.min(20, el.shadowBlur || 0)}" class="prop-range">
         </div>
         <div class="prop-field" style="margin-top:10px;">
-          <label>Offset X (<span id="lbl-val-shadow-offset-x">${el.shadowOffsetX || 0}px</span>)</label>
-          <input type="range" id="prop-shadow-offset-x" min="-50" max="50" value="${el.shadowOffsetX || 0}" class="prop-range">
+          <label>Offset X (<span id="lbl-val-shadow-offset-x">${Math.min(20, Math.max(-20, el.shadowOffsetX || 0))}px</span>)</label>
+          <input type="range" id="prop-shadow-offset-x" min="-20" max="20" value="${Math.min(20, Math.max(-20, el.shadowOffsetX || 0))}" class="prop-range">
         </div>
         <div class="prop-field" style="margin-top:10px;">
-          <label>Offset Y (<span id="lbl-val-shadow-offset-y">${el.shadowOffsetY !== undefined ? el.shadowOffsetY : (el.shadowBlur ? 4 : 0)}px</span>)</label>
-          <input type="range" id="prop-shadow-offset-y" min="-50" max="50" value="${el.shadowOffsetY !== undefined ? el.shadowOffsetY : (el.shadowBlur ? 4 : 0)}px" class="prop-range">
+          <label>Offset Y (<span id="lbl-val-shadow-offset-y">${Math.min(20, Math.max(-20, el.shadowOffsetY !== undefined ? el.shadowOffsetY : (el.shadowBlur ? 4 : 0)))}px</span>)</label>
+          <input type="range" id="prop-shadow-offset-y" min="-20" max="20" value="${Math.min(20, Math.max(-20, el.shadowOffsetY !== undefined ? el.shadowOffsetY : (el.shadowBlur ? 4 : 0)))}" class="prop-range">
         </div>
         <div class="prop-field" style="margin-top:10px;">
           <label>Shadow Color</label>
@@ -590,19 +590,19 @@ class SlideMakerApp {
       window.state.updateElement(el.id, { grayscale: val });
     });
     document.getElementById('prop-shadow-blur')?.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value, 10) || 0;
+      const val = Math.min(20, Math.max(0, parseInt(e.target.value, 10) || 0));
       const lbl = document.getElementById('lbl-val-shadow-blur');
       if (lbl) lbl.textContent = `${val}px`;
       window.state.updateElement(el.id, { shadowBlur: val });
     });
     document.getElementById('prop-shadow-offset-x')?.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value, 10) || 0;
+      const val = Math.min(20, Math.max(-20, parseInt(e.target.value, 10) || 0));
       const lbl = document.getElementById('lbl-val-shadow-offset-x');
       if (lbl) lbl.textContent = `${val}px`;
       window.state.updateElement(el.id, { shadowOffsetX: val });
     });
     document.getElementById('prop-shadow-offset-y')?.addEventListener('input', (e) => {
-      const val = parseInt(e.target.value, 10) || 0;
+      const val = Math.min(20, Math.max(-20, parseInt(e.target.value, 10) || 0));
       const lbl = document.getElementById('lbl-val-shadow-offset-y');
       if (lbl) lbl.textContent = `${val}px`;
       window.state.updateElement(el.id, { shadowOffsetY: val });
