@@ -9,7 +9,7 @@
   <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Montserrat:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Montserrat:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@500;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   
   <!-- FontAwesome Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -248,6 +248,12 @@
         <i class="fa-solid fa-font" style="color:var(--text-primary);"></i>
         <input type="color" id="ctx-text-color" value="#0F172A">
       </label>
+
+      <!-- Sync Title Style Button (Active when a Title is selected) -->
+      <button id="ctx-btn-sync-title" class="ctx-btn" title="Sync this title style (font, size, color, align) to all slides" style="display:none;font-size:11px;padding:3px 9px;gap:5px;background:rgba(127,194,63,0.15);border:1px solid var(--udes-lime);color:var(--udes-lime);border-radius:4px;">
+        <i class="fa-solid fa-arrows-rotate"></i>
+        <span>Sync Title to All Slides</span>
+      </button>
     </div>
 
     <!-- Shape Formatting Controls -->
@@ -565,6 +571,18 @@
             <span>Preset Templates</span>
           </div>
           <div class="zf-templates-grid" id="zf-templates-container"></div>
+        </div>
+
+        <!-- 2. Diagram Title -->
+        <div>
+          <div class="zf-section-title">
+            <i class="fa-solid fa-heading" style="color:var(--udes-lime);"></i>
+            <span>Diagram Title</span>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:8px;">
+            <input type="text" id="zf-title-input" class="zf-select" placeholder="Diagram Title" value="Strategic Innovation & Delivery Pipeline" style="font-size:12.5px;padding:8px 12px;color:#fff;">
+            <input type="text" id="zf-subtitle-input" class="zf-select" placeholder="Optional Subtitle" style="font-size:11.5px;padding:7px 12px;color:#94a3b8;">
+          </div>
         </div>
 
         <!-- 3. Visual Theme -->

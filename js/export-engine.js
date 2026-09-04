@@ -291,7 +291,7 @@ class ExportEngine {
   <!-- Modern Typography & Icons -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700&family=Montserrat:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Montserrat:wght@400;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   
   <!-- Interactive Chart.js runtime -->
@@ -537,24 +537,13 @@ class ExportEngine {
     .zoom-detail-bullets { margin:0; padding-left:18px; font-size:12px; color:#cbd5e1; display:flex; flex-direction:column; gap:6px; }
     .zoom-detail-metric-badge { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:8px 12px; border-radius:8px; }
     .zoom-detail-metric-val { font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:var(--node-color, #7FC23F); }
-    .zoom-detail-metric-lbl { font-size:11px; color:#94a3b8; font-weight:600; text-transform:uppercase; }
+    /* Diagram Header */
+    .zf-diagram-header { position:absolute; top:50px; left:80px; width:calc(100% - 160px); max-width:820px; display:flex; flex-direction:column; align-items:flex-start; justify-content:flex-start; text-align:left; z-index:15; padding:0; box-sizing:border-box; transition:opacity 0.35s ease, transform 0.35s ease; }
+    .zoom-flow-stage.is-zoomed-in .zf-diagram-header { opacity:0; pointer-events:none; transform:translateY(-16px); }
+    .zf-diagram-title { margin:0; padding:4px 10px; font-family:'JetBrains Mono',monospace; font-size:44px; font-weight:700; letter-spacing:-0.01em; color:#ffffff; line-height:1.2; text-shadow:0 2px 14px rgba(0,0,0,0.65); max-width:100%; word-break:break-word; text-align:left; }
+    .zf-diagram-subtitle { margin:6px 0 0 0; padding:2px 10px; font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:500; color:#94a3b8; line-height:1.3; max-width:100%; word-break:break-word; text-align:left; }
 
-    /* Flow Dropdown Menu & Child Slide Breadcrumb */
-    .zf-slide-dropdown-container { position:absolute; top:14px; left:18px; z-index:60; }
-    .zf-slide-dropdown-trigger { background:rgba(15,23,42,0.92); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.18); border-radius:30px; padding:7px 15px; display:flex; align-items:center; gap:10px; color:#ffffff; font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.5); transition:all 0.2s ease; }
-    .zf-slide-dropdown-trigger:hover { border-color:#7fc23f; background:rgba(22,33,50,0.98); }
-    .zf-dropdown-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(127,194,63,0.2); color:#7fc23f; border:1px solid rgba(127,194,63,0.35); }
-    .zf-slide-dropdown-menu { position:absolute; top:calc(100% + 8px); left:0; min-width:280px; background:rgba(15,23,42,0.96); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.16); border-radius:12px; padding:6px; box-shadow:0 16px 40px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:4px; z-index:100; }
-    .zf-slide-dropdown-menu.is-hidden { display:none !important; }
-    .zf-dropdown-header { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8; padding:6px 10px 4px 10px; display:flex; align-items:center; gap:6px; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:2px; }
-    .zf-dropdown-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:transparent; border:none; cursor:pointer; text-align:left; width:100%; color:#f1f5f9; transition:all 0.15s ease; }
-    .zf-dropdown-item:hover { background:rgba(255,255,255,0.08); color:#ffffff; }
-    .zf-dropdown-item-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-    .zf-dropdown-item-text { flex:1; min-width:0; }
-    .zf-dropdown-item-title { font-family:'Outfit',sans-serif; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .zf-dropdown-item-sub { font-size:10.5px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .zf-dropdown-item-arrow { font-size:10px; color:#94a3b8; opacity:0; transition:all 0.15s ease; }
-    .zf-dropdown-item:hover .zf-dropdown-item-arrow { opacity:1; color:#7fc23f; transform:translateX(2px); }
+    /* Child Slide Breadcrumb */
 
     .zf-child-breadcrumb-banner { position:absolute; top:16px; left:20px; background:rgba(15,23,42,0.88); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.18); border-radius:20px; padding:6px 14px; display:flex; align-items:center; gap:8px; z-index:50; cursor:pointer; transition:all 0.2s ease; box-shadow:0 4px 14px rgba(0,0,0,0.4); color:#ffffff; font-size:12px; font-weight:600; }
     .zf-child-breadcrumb-banner:hover { background:rgba(22,33,50,0.98); border-color:#7fc23f; transform:translateX(-2px); }
@@ -700,7 +689,7 @@ class ExportEngine {
           inner.style.height = '100%';
 
           if (el.type === 'text') {
-            inner.style.fontFamily = el.fontFamily || 'Inter';
+            inner.style.fontFamily = el.fontFamily || 'JetBrains Mono';
             inner.style.fontSize = (el.fontSize || 18) + 'px';
             inner.style.fontWeight = el.fontWeight || '400';
             inner.style.fontStyle = el.fontStyle || 'normal';
@@ -892,6 +881,31 @@ class ExportEngine {
       zoomStage.style.width = baseWidth + 'px';
       zoomStage.style.height = baseHeight + 'px';
 
+      // Diagram Header (Title & Subtitle)
+      const titleText = flowData.title || '';
+      const subtitleText = flowData.subtitle || '';
+      const tStyle = flowData.titleStyle || {};
+      if (titleText || subtitleText) {
+        const headerEl = document.createElement('div');
+        headerEl.className = 'zf-diagram-header';
+        if (tStyle.textAlign) {
+          headerEl.style.alignItems = tStyle.textAlign === 'center' ? 'center' : (tStyle.textAlign === 'right' ? 'flex-end' : 'flex-start');
+          headerEl.style.textAlign = tStyle.textAlign;
+        }
+        let tStyles = '';
+        if (tStyle.fontFamily) tStyles += 'font-family:' + tStyle.fontFamily + ';';
+        if (tStyle.fontSize) tStyles += 'font-size:' + tStyle.fontSize + 'px;';
+        if (tStyle.fontWeight) tStyles += 'font-weight:' + tStyle.fontWeight + ';';
+        if (tStyle.fontStyle) tStyles += 'font-style:' + tStyle.fontStyle + ';';
+        if (tStyle.textDecoration) tStyles += 'text-decoration:' + tStyle.textDecoration + ';';
+        if (tStyle.color) tStyles += 'color:' + tStyle.color + ';';
+        if (tStyle.textAlign) tStyles += 'text-align:' + tStyle.textAlign + ';';
+
+        headerEl.innerHTML = (titleText ? '<h2 class="zf-diagram-title"' + (tStyles ? ' style="' + tStyles + '"' : '') + '>' + titleText + '</h2>' : '') +
+          (subtitleText ? '<p class="zf-diagram-subtitle"' + (tStyle.textAlign ? ' style="text-align:' + tStyle.textAlign + ';"' : '') + '>' + subtitleText + '</p>' : '');
+        zoomStage.appendChild(headerEl);
+      }
+
       // SVG
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       svg.setAttribute('class', 'zoom-flow-svg-layer');
@@ -922,6 +936,10 @@ class ExportEngine {
         tan[4] = { x: -pt2.dirX * Math.max(30, dist34 * 0.75), y: -pt2.dirY * Math.max(30, dist34 * 0.75) };
         for (let k = 1; k <= 3; k++) {
           tan[k] = { x: (pts[k + 1].x - pts[k - 1].x) * 0.5, y: (pts[k + 1].y - pts[k - 1].y) * 0.5 };
+        }
+        const allSameY = pts.every(pt => Math.abs(pt.y - pts[0].y) < 0.001);
+        if (allSameY) {
+          pts[pts.length - 1].y += 0.02;
         }
         let res = 'M ' + pts[0].x + ' ' + pts[0].y;
         for (let k = 0; k < 4; k++) {
@@ -1090,7 +1108,8 @@ class ExportEngine {
               const cp1y = pt1.y + pt1.dirY * tension;
               const cp2x = pt2.x + pt2.dirX * tension;
               const cp2y = pt2.y + pt2.dirY * tension;
-              d = 'M ' + pt1.x + ' ' + pt1.y + ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + pt2.x + ' ' + pt2.y;
+              const safeEndY = Math.abs(pt1.y - pt2.y) < 0.001 ? pt2.y + 0.02 : pt2.y;
+              d = 'M ' + pt1.x + ' ' + pt1.y + ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + pt2.x + ' ' + safeEndY;
             }
           }
 
@@ -1107,7 +1126,8 @@ class ExportEngine {
           const p1 = positions[i - 1], p2 = positions[i];
           const x1 = p1.x + 112, y1 = p1.y, x2 = p2.x - 112, y2 = p2.y;
           const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
-          const d = 'M ' + x1 + ' ' + y1 + ' C ' + (x1 + dx) + ' ' + y1 + ', ' + (x2 - dx) + ' ' + y2 + ', ' + x2 + ' ' + y2;
+          const safeY2 = Math.abs(y1 - y2) < 0.001 ? y2 + 0.02 : y2;
+          const d = 'M ' + x1 + ' ' + y1 + ' C ' + (x1 + dx) + ' ' + y1 + ', ' + (x2 - dx) + ' ' + y2 + ', ' + x2 + ' ' + safeY2;
           const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
           path.setAttribute('d', d);
           path.setAttribute('fill', 'none');
@@ -1128,7 +1148,7 @@ class ExportEngine {
         nEl.style.top = pos.y + 'px';
         nEl.style.setProperty('--node-color', node.color || '#00A350');
 
-        nEl.innerHTML = '<div class="zoom-flow-node-card"><div class="zoom-flow-node-header"><span class="zoom-flow-node-badge">' + (node.status || ('Stage ' + (idx + 1))) + '</span></div><h4 class="zoom-flow-node-title">' + node.title + '</h4><p class="zoom-flow-node-sub">' + (node.subtitle || '') + '</p>' + (node.metricVal ? ('<div class="zoom-flow-node-mini-metric"><span class="val">' + node.metricVal + '</span><span class="lbl">' + (node.metricLbl || '') + '</span></div>') : '') + '<div class="zoom-detail-popout">' + (node.metricVal ? ('<div class="zoom-detail-metric-badge"><div><div class="zoom-detail-metric-val">' + node.metricVal + '</div><div class="zoom-detail-metric-lbl">' + (node.metricLbl || 'Key Metric') + '</div></div></div>') : '') + '<p class="zoom-detail-summary">' + (node.summary || '') + '</p>' + (node.bullets && node.bullets.length ? ('<ul class="zoom-detail-bullets">' + node.bullets.map(b => '<li>' + b + '</li>').join('') + '</ul>') : '') + '<button class="zf-node-jump-btn" data-index="' + idx + '" title="Open this node\'s full slide"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide</button></div></div>';
+        nEl.innerHTML = '<div class="zoom-flow-node-card"><h4 class="zoom-flow-node-title">' + node.title + '</h4>' + (node.subtitle ? ('<p class="zoom-flow-node-sub">' + node.subtitle + '</p>') : '') + '<div class="zoom-detail-popout">' + (node.metricVal ? ('<div class="zoom-detail-metric-badge"><div><div class="zoom-detail-metric-val">' + node.metricVal + '</div><div class="zoom-detail-metric-lbl">' + (node.metricLbl || 'Key Metric') + '</div></div></div>') : '') + '<p class="zoom-detail-summary">' + (node.summary || '') + '</p>' + (node.bullets && node.bullets.length ? ('<ul class="zoom-detail-bullets">' + node.bullets.map(b => '<li>' + b + '</li>').join('') + '</ul>') : '') + '<button class="zf-node-jump-btn" data-index="' + idx + '" title="Open this node\'s full slide"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide</button></div></div>';
 
         zoomStage.appendChild(nEl);
         nodeEls.push(nEl);
@@ -1149,30 +1169,6 @@ class ExportEngine {
         } else {
           currentZoomController.zoomToNodeFullscreen(nodeIdx);
         }
-      }
-
-      // On-Slide Dropdown Menu to navigate to any slide from the main flow slide
-      if (nodes.length > 0) {
-        const ddWrap = document.createElement('div');
-        ddWrap.className = 'zf-slide-dropdown-container';
-        ddWrap.innerHTML = '<button class="zf-slide-dropdown-trigger"><i class="fa-solid fa-layer-group" style="color:#7fc23f;"></i> <span class="zf-dropdown-label">Slides (' + nodes.length + ')</span> <span class="zf-dropdown-badge">Regular Content</span> <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i></button><div class="zf-slide-dropdown-menu is-hidden"><div class="zf-dropdown-header"><i class="fa-solid fa-diagram-project"></i> <span>Jump to Node Slide</span></div>' + nodes.map((n, i) => '<button class="zf-dropdown-item" data-index="' + i + '"><div class="zf-dropdown-item-dot" style="background:' + (n.color || '#00A350') + ';"></div><div class="zf-dropdown-item-text"><div class="zf-dropdown-item-title">' + n.title + '</div><div class="zf-dropdown-item-sub">' + (n.subtitle || n.status || '') + '</div></div><i class="fa-solid fa-arrow-right zf-dropdown-item-arrow"></i></button>').join('') + '</div>';
-
-        const ddTrig = ddWrap.querySelector('.zf-slide-dropdown-trigger');
-        const ddMenu = ddWrap.querySelector('.zf-slide-dropdown-menu');
-        ddTrig.addEventListener('click', (e) => {
-          e.stopPropagation();
-          ddMenu.classList.toggle('is-hidden');
-        });
-        document.addEventListener('click', () => ddMenu.classList.add('is-hidden'));
-        ddMenu.querySelectorAll('.zf-dropdown-item').forEach(item => {
-          item.addEventListener('click', (e) => {
-            e.stopPropagation();
-            ddMenu.classList.add('is-hidden');
-            const idx = parseInt(item.getAttribute('data-index'), 10);
-            navigateToSlideIndex(idx);
-          });
-        });
-        flowWrap.appendChild(ddWrap);
       }
 
       elementsLayer.appendChild(flowWrap);
@@ -1265,7 +1261,7 @@ class ExportEngine {
       });
 
       flowWrap.addEventListener('click', (e) => {
-        if (e.target.closest('.zf-slide-dropdown-container') || e.target.closest('.zoom-flow-node')) return;
+        if (e.target.closest('.zoom-flow-node')) return;
         currentZoomController.zoomToOverview();
       });
     }

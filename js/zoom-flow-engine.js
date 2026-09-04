@@ -749,6 +749,15 @@ class ZoomFlowEngine {
       };
     }
 
+    const allSameY = pts.every(pt => Math.abs(pt.y - pts[0].y) < 0.001);
+    const allSameX = pts.every(pt => Math.abs(pt.x - pts[0].x) < 0.001);
+    if (allSameY) {
+      pts[pts.length - 1].y += 0.02;
+    }
+    if (allSameX) {
+      pts[pts.length - 1].x += 0.02;
+    }
+
     let d = `M ${pts[0].x} ${pts[0].y}`;
     for (let i = 0; i < 4; i++) {
       const cp1x = Math.round(pts[i].x + tangents[i].x / 3);
@@ -799,19 +808,23 @@ class ZoomFlowEngine {
     const anchors = this.getConnectionAnchors(fromPos, toPos, fromPort, toPort);
     const { x1, y1, x2, y2, cp1x, cp1y, cp2x, cp2y } = anchors;
 
+    // Prevent zero-dimension SVG bounding box on strictly horizontal or vertical paths
+    const safeY2 = Math.abs(y1 - y2) < 0.001 ? y2 + 0.02 : y2;
+    const safeX2 = Math.abs(x1 - x2) < 0.001 ? x2 + 0.02 : x2;
+
     if (type === 'straight' || type === 'line') {
-      return `M ${x1} ${y1} L ${x2} ${y2}`;
+      return `M ${x1} ${y1} L ${safeX2} ${safeY2}`;
     }
 
     if (type === 'arc') {
       const dX = x2 - x1;
       const dY = y2 - y1;
       const dist = Math.sqrt(dX * dX + dY * dY);
-      return `M ${x1} ${y1} A ${dist * 0.9} ${dist * 0.9} 0 0 1 ${x2} ${y2}`;
+      return `M ${x1} ${y1} A ${dist * 0.9} ${dist * 0.9} 0 0 1 ${safeX2} ${safeY2}`;
     }
 
     // Default bezier with outward tangents from each port
-    return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+    return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${safeX2} ${safeY2}`;
   }
 
   // --- Obstacle Avoidance Auto-Routing Engine (Ensures auto lines won't pass under blocs) ---
@@ -1028,6 +1041,113 @@ class ZoomFlowEngine {
     zoomStage.style.width = `${stageWidth}px`;
     zoomStage.style.height = `${stageHeight}px`;
 
+    // Diagram Header (Title & optional Subtitle)
+    const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    const titleText = flowData.title !== undefined ? flowData.title : 'Flow Diagram';
+    const subtitleText = flowData.subtitle || '';
+
+    // Inherit synchronized global title style
+    const globalTitleStyle = (window.state && window.state.titleStyle) || {};
+    const titleStyle = Object.assign({
+      fontFamily: 'JetBrains Mono',
+      fontSize: 44,
+      fontWeight: '700',
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      color: theme.textColor || '#FFFFFF',
+      textAlign: 'left'
+    }, globalTitleStyle, flowData.titleStyle || {});
+
+    const headerEl = document.createElement('div');
+    headerEl.className = 'zf-diagram-header';
+    headerEl.innerHTML = `
+      <h2 class="zf-diagram-title ${isEditor ? 'is-editable' : ''}" ${isEditor ? 'contenteditable="true" spellcheck="false"' : ''} title="${isEditor ? 'Click to edit diagram title' : ''}">${esc(titleText)}</h2>
+      ${(subtitleText || isEditor) ? `
+        <p class="zf-diagram-subtitle ${isEditor ? 'is-editable' : ''}" ${isEditor ? 'contenteditable="true" spellcheck="false"' : ''} title="${isEditor ? 'Click to edit subtitle' : ''}">${esc(subtitleText || (isEditor ? 'Click to add subtitle' : ''))}</p>
+      ` : ''}
+    `;
+
+    const titleEl = headerEl.querySelector('.zf-diagram-title');
+    const subtitleEl = headerEl.querySelector('.zf-diagram-subtitle');
+
+    if (titleEl) {
+      if (titleStyle.fontFamily) titleEl.style.fontFamily = titleStyle.fontFamily;
+      if (titleStyle.fontSize) titleEl.style.fontSize = `${titleStyle.fontSize}px`;
+      if (titleStyle.fontWeight) titleEl.style.fontWeight = titleStyle.fontWeight;
+      if (titleStyle.fontStyle) titleEl.style.fontStyle = titleStyle.fontStyle;
+      if (titleStyle.textDecoration) titleEl.style.textDecoration = titleStyle.textDecoration;
+      if (titleStyle.color) titleEl.style.color = titleStyle.color;
+      if (titleStyle.textAlign) {
+        titleEl.style.textAlign = titleStyle.textAlign;
+        headerEl.style.alignItems = titleStyle.textAlign === 'center' ? 'center' : (titleStyle.textAlign === 'right' ? 'flex-end' : 'flex-start');
+        headerEl.style.textAlign = titleStyle.textAlign;
+      }
+    }
+    if (subtitleEl && titleStyle.textAlign) {
+      subtitleEl.style.textAlign = titleStyle.textAlign;
+    }
+
+    if (isEditor) {
+      titleEl?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (window.state) {
+          window.state.selectDiagramTitle();
+          if (window.app && typeof window.app.syncContextualToolbar === 'function') {
+            window.app.syncContextualToolbar();
+          }
+        }
+      });
+      titleEl?.addEventListener('focus', () => {
+        if (window.state) {
+          window.state.selectDiagramTitle();
+          if (window.app && typeof window.app.syncContextualToolbar === 'function') {
+            window.app.syncContextualToolbar();
+          }
+        }
+      });
+      titleEl?.addEventListener('mousedown', (e) => e.stopPropagation());
+      titleEl?.addEventListener('input', () => {
+        const val = titleEl.innerText.trim();
+        flowData.title = val;
+        const input = document.getElementById('flow-prop-title');
+        if (input) input.value = val;
+        if (window.state) {
+          const activeSlide = window.state.getActiveSlide();
+          if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
+            activeSlide.zoomFlowData.title = val;
+          }
+        }
+      });
+      titleEl?.addEventListener('blur', () => {
+        if (window.state) {
+          window.state.saveHistory('Edit Diagram Title');
+        }
+      });
+
+      subtitleEl?.addEventListener('click', (e) => e.stopPropagation());
+      subtitleEl?.addEventListener('mousedown', (e) => e.stopPropagation());
+      subtitleEl?.addEventListener('input', () => {
+        let val = subtitleEl.innerText.trim();
+        if (val === 'Click to add subtitle') val = '';
+        flowData.subtitle = val;
+        const input = document.getElementById('flow-prop-subtitle');
+        if (input) input.value = val;
+        if (window.state) {
+          const activeSlide = window.state.getActiveSlide();
+          if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
+            activeSlide.zoomFlowData.subtitle = val;
+          }
+        }
+      });
+      subtitleEl?.addEventListener('blur', () => {
+        if (window.state) {
+          window.state.saveHistory('Edit Diagram Subtitle');
+        }
+      });
+    }
+
+    zoomStage.appendChild(headerEl);
+
     // 1. SVG Connectors Layer
     const svgLayer = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
     svgLayer.setAttribute('class', 'zoom-flow-svg-layer');
@@ -1041,7 +1161,7 @@ class ZoomFlowEngine {
       <marker id="zf-arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
         <path d="M 0 1 L 10 5 L 0 9 z" fill="${theme.lineColor || '#00A350'}" opacity="0.9" />
       </marker>
-      <linearGradient id="zf-line-grad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <linearGradient id="zf-line-grad" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="${stageWidth}" y2="${stageHeight}">
         <stop offset="0%" stop-color="${theme.accentColors[0]}" stop-opacity="0.8" />
         <stop offset="50%" stop-color="${theme.accentColors[1] || theme.accentColors[0]}" stop-opacity="0.9" />
         <stop offset="100%" stop-color="${theme.accentColors[2] || theme.accentColors[0]}" stop-opacity="0.8" />
@@ -1343,19 +1463,8 @@ class ZoomFlowEngine {
 
       nodeEl.innerHTML = `
         <div class="zoom-flow-node-card">
-          <div class="zoom-flow-node-header">
-            <span class="zoom-flow-node-badge">${node.status || `Stage ${idx + 1}`}</span>
-          </div>
-
           <h4 class="zoom-flow-node-title">${node.title}</h4>
-          <p class="zoom-flow-node-sub">${node.subtitle || ''}</p>
-
-          ${node.metricVal ? `
-            <div class="zoom-flow-node-mini-metric">
-              <span class="val">${node.metricVal}</span>
-              <span class="lbl">${node.metricLbl || ''}</span>
-            </div>
-          ` : ''}
+          ${node.subtitle ? `<p class="zoom-flow-node-sub">${node.subtitle}</p>` : ''}
 
           <!-- Zoom Popout Detailed Drawer (Visible when camera zooms into this node) -->
           <div class="zoom-detail-popout">
@@ -1711,66 +1820,6 @@ class ZoomFlowEngine {
 
     wrapper.appendChild(zoomStage);
 
-    // On-Slide Dropdown Menu to navigate to any slide from the main flow slide
-    if (!isPreview && nodes.length > 0) {
-      const dropdownWrap = document.createElement('div');
-      dropdownWrap.className = 'zf-slide-dropdown-container';
-      dropdownWrap.innerHTML = `
-        <button class="zf-slide-dropdown-trigger" title="Jump to Node Slide">
-          <i class="fa-solid fa-layer-group" style="color:var(--udes-lime);"></i>
-          <span class="zf-dropdown-label">Slides (${nodes.length})</span>
-          <span class="zf-dropdown-badge">Regular Content</span>
-          <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i>
-        </button>
-        <div class="zf-slide-dropdown-menu is-hidden">
-          <div class="zf-dropdown-header">
-            <i class="fa-solid fa-diagram-project"></i>
-            <span>Jump to Node Slide</span>
-          </div>
-          ${nodes.map((node, i) => `
-            <button class="zf-dropdown-item" data-index="${i}">
-              <div class="zf-dropdown-item-dot" style="background:${node.color || '#00A350'};"></div>
-              <div class="zf-dropdown-item-text">
-                <div class="zf-dropdown-item-title">${node.title}</div>
-                <div class="zf-dropdown-item-sub">${node.subtitle || node.status || ''}</div>
-              </div>
-              <i class="fa-solid fa-arrow-right zf-dropdown-item-arrow"></i>
-            </button>
-          `).join('')}
-        </div>
-      `;
-
-      const dropdownTrigger = dropdownWrap.querySelector('.zf-slide-dropdown-trigger');
-      const dropdownMenu = dropdownWrap.querySelector('.zf-slide-dropdown-menu');
-
-      dropdownWrap.addEventListener('click', (e) => {
-        e.stopPropagation();
-      });
-
-      dropdownTrigger?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        dropdownMenu?.classList.toggle('is-hidden');
-      });
-
-      const onDocClick = (e) => {
-        if (!dropdownWrap.contains(e.target)) {
-          dropdownMenu?.classList.add('is-hidden');
-        }
-      };
-      document.addEventListener('click', onDocClick);
-
-      dropdownMenu?.querySelectorAll('.zf-dropdown-item').forEach(item => {
-        item.addEventListener('click', (e) => {
-          e.stopPropagation();
-          dropdownMenu?.classList.add('is-hidden');
-          const idx = parseInt(item.getAttribute('data-index'), 10);
-          navigateToChildSlide(idx);
-        });
-      });
-
-      wrapper.appendChild(dropdownWrap);
-    }
-
     // Controller Object
     const controller = {
       wrapper,
@@ -1965,7 +2014,7 @@ class ZoomFlowEngine {
         const currentSlide = (window.presenterEngine && window.presenterEngine.isActive)
           ? window.state.slides[window.presenterEngine.currentSlideIndex]
           : window.state.getActiveSlide();
-        const parentId = currentSlide ? currentSlide.id : null;
+        const parentId = options.flowSlideId || (currentSlide ? (currentSlide.isZoomFlow ? currentSlide.id : currentSlide.parentFlowSlideId) : null);
         let targetIdx = -1;
 
         if (parentId) {
@@ -1982,33 +2031,33 @@ class ZoomFlowEngine {
         }
 
         // Auto-generate missing child slides if not found yet
-        if (targetIdx === -1 && window.zoomFlowEngine && currentSlide) {
-          const flowNodes = currentSlide.zoomFlowData?.nodes || nodes;
-          const themeKey = currentSlide.zoomFlowData?.theme || 'udes-emerald';
-          currentSlide.childSlideIds = currentSlide.childSlideIds || [];
-          const pIdx = window.state.slides.indexOf(currentSlide);
+        if (targetIdx === -1 && window.zoomFlowEngine) {
+          const parentSlide = (parentId && window.state.slides.find(s => s.id === parentId)) || currentSlide;
+          if (parentSlide) {
+            const flowNodes = parentSlide.zoomFlowData?.nodes || nodes;
+            const themeKey = parentSlide.zoomFlowData?.theme || 'udes-emerald';
+            parentSlide.childSlideIds = parentSlide.childSlideIds || [];
+            const pIdx = window.state.slides.indexOf(parentSlide);
 
-          flowNodes.forEach((n, i) => {
-            let existing = window.state.slides.find(s =>
-              (s.parentFlowSlideId === currentSlide.id && (s.flowNodeId === n.id || s.flowNodeIndex === i)) ||
-              (currentSlide.childSlideIds.includes(s.id) && s.flowNodeIndex === i)
-            );
-            if (!existing) {
-              const child = window.zoomFlowEngine.generateChildSlide(n, currentSlide.id, i, flowNodes.length, themeKey);
-              currentSlide.childSlideIds.push(child.id);
-              window.state.slides.splice(pIdx + 1 + i, 0, child);
+            flowNodes.forEach((n, i) => {
+              let existing = window.state.slides.find(s =>
+                (s.parentFlowSlideId === parentSlide.id && (s.flowNodeId === n.id || s.flowNodeIndex === i)) ||
+                (parentSlide.childSlideIds.includes(s.id) && s.flowNodeIndex === i)
+              );
+              if (!existing) {
+                const child = window.zoomFlowEngine.generateChildSlide(n, parentSlide.id, i, flowNodes.length, themeKey);
+                parentSlide.childSlideIds.push(child.id);
+                window.state.slides.splice(pIdx + 1 + i, 0, child);
+              }
+            });
+
+            targetIdx = window.state.slides.findIndex(s => s.parentFlowSlideId === parentSlide.id && (s.flowNodeId === targetNode.id || s.flowNodeIndex === nodeIdx));
+            if (targetIdx === -1) {
+              targetIdx = window.state.slides.findIndex(s => s.isFlowChild && (s.flowNodeId === targetNode.id || s.flowNodeIndex === nodeIdx));
             }
-          });
-
-          targetIdx = window.state.slides.findIndex(s => s.parentFlowSlideId === currentSlide.id && s.flowNodeIndex === nodeIdx);
-          if (targetIdx === -1) {
-            targetIdx = window.state.slides.findIndex(s => s.parentFlowSlideId === currentSlide.id && s.flowNodeId === targetNode.id);
-          }
-          if (targetIdx === -1) {
-            targetIdx = window.state.slides.findIndex(s => s.isFlowChild && s.flowNodeIndex === nodeIdx);
-          }
-          if (window.slideManager) {
-            window.slideManager.renderThumbnails();
+            if (window.slideManager) {
+              window.slideManager.renderThumbnails();
+            }
           }
         }
 
@@ -2034,7 +2083,10 @@ class ZoomFlowEngine {
           return;
         }
         e.stopPropagation();
-        if (isEditor) {
+        if (isPresenter || (window.presenterEngine && window.presenterEngine.isActive)) {
+          // In presenter mode, clicking an associated bloc in overview mode immediately jumps to that slide!
+          navigateToChildSlide(idx);
+        } else if (isEditor) {
           // Select node in Flow Diagram inspector
           if (window.app && typeof window.app.selectFlowNode === 'function') {
             window.app.selectFlowNode(idx);
@@ -2047,7 +2099,6 @@ class ZoomFlowEngine {
             controller.zoomToNode(idx);
           }
         } else {
-          // In presenter mode, opening a box immediately opens the associated slide!
           navigateToChildSlide(idx);
         }
       });
@@ -2061,7 +2112,7 @@ class ZoomFlowEngine {
     // Clicking empty space zooms back to overview
     wrapper.addEventListener('click', (e) => {
       if (
-        e.target.closest('.zf-slide-dropdown-container') ||
+        e.target.closest('.zf-diagram-header') ||
         e.target.closest('.zoom-flow-editor-banner') ||
         e.target.closest('.zoom-flow-node') ||
         e.target.closest('.zf-toolbar-btn') ||

@@ -407,7 +407,7 @@ class CanvasEngine {
   // --- Element Specific Renderers ---
 
   applyTextStyles(inner, el) {
-    inner.style.fontFamily = el.fontFamily || 'Inter';
+    inner.style.fontFamily = el.fontFamily || CONFIG.defaultFont || 'JetBrains Mono';
     inner.style.fontSize = `${el.fontSize || 18}px`;
     inner.style.fontWeight = el.fontWeight || '400';
     inner.style.fontStyle = el.fontStyle || 'normal';

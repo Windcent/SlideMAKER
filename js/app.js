@@ -234,18 +234,34 @@ class SlideMakerApp {
     if (fontSelect) {
       fontSelect.innerHTML = CONFIG.fonts.map(f => `<option value="${f.name}">${f.name}</option>`).join('');
       fontSelect.addEventListener('change', (e) => {
-        window.state.updateSelectedElements({ fontFamily: e.target.value });
+        if (window.state.isDiagramTitleSelected) {
+          window.state.syncTitleStyleToAllSlides({ fontFamily: e.target.value });
+        } else {
+          window.state.updateSelectedElements({ fontFamily: e.target.value });
+        }
       });
     }
 
     const fontSizeInput = document.getElementById('ctx-font-size');
     if (fontSizeInput) {
       fontSizeInput.addEventListener('change', (e) => {
-        window.state.updateSelectedElements({ fontSize: parseInt(e.target.value, 10) });
+        const sz = parseInt(e.target.value, 10);
+        if (window.state.isDiagramTitleSelected) {
+          window.state.syncTitleStyleToAllSlides({ fontSize: sz });
+        } else {
+          window.state.updateSelectedElements({ fontSize: sz });
+        }
       });
     }
 
     document.getElementById('ctx-btn-font-plus')?.addEventListener('click', () => {
+      if (window.state.isDiagramTitleSelected) {
+        const cur = window.state.titleStyle?.fontSize || 44;
+        const newSize = cur + 2;
+        window.state.syncTitleStyleToAllSlides({ fontSize: newSize });
+        if (fontSizeInput) fontSizeInput.value = newSize;
+        return;
+      }
       const el = window.state.getSelectedElement();
       if (el && el.fontSize) {
         const newSize = el.fontSize + 2;
@@ -255,6 +271,15 @@ class SlideMakerApp {
     });
 
     document.getElementById('ctx-btn-font-minus')?.addEventListener('click', () => {
+      if (window.state.isDiagramTitleSelected) {
+        const cur = window.state.titleStyle?.fontSize || 44;
+        if (cur > 14) {
+          const newSize = cur - 2;
+          window.state.syncTitleStyleToAllSlides({ fontSize: newSize });
+          if (fontSizeInput) fontSizeInput.value = newSize;
+        }
+        return;
+      }
       const el = window.state.getSelectedElement();
       if (el && el.fontSize && el.fontSize > 8) {
         const newSize = el.fontSize - 2;
@@ -264,6 +289,12 @@ class SlideMakerApp {
     });
 
     document.getElementById('ctx-btn-bold')?.addEventListener('click', () => {
+      if (window.state.isDiagramTitleSelected) {
+        const isBold = (window.state.titleStyle?.fontWeight === '700' || window.state.titleStyle?.fontWeight === 'bold');
+        window.state.syncTitleStyleToAllSlides({ fontWeight: isBold ? '400' : '700' });
+        this.syncContextualToolbar();
+        return;
+      }
       const el = window.state.getSelectedElement();
       if (!el) return;
       const isBold = el.fontWeight === '700' || el.fontWeight === 'bold';
@@ -271,6 +302,12 @@ class SlideMakerApp {
     });
 
     document.getElementById('ctx-btn-italic')?.addEventListener('click', () => {
+      if (window.state.isDiagramTitleSelected) {
+        const isItalic = window.state.titleStyle?.fontStyle === 'italic';
+        window.state.syncTitleStyleToAllSlides({ fontStyle: isItalic ? 'normal' : 'italic' });
+        this.syncContextualToolbar();
+        return;
+      }
       const el = window.state.getSelectedElement();
       if (!el) return;
       const isItalic = el.fontStyle === 'italic';
@@ -278,6 +315,12 @@ class SlideMakerApp {
     });
 
     document.getElementById('ctx-btn-underline')?.addEventListener('click', () => {
+      if (window.state.isDiagramTitleSelected) {
+        const isUnder = window.state.titleStyle?.textDecoration === 'underline';
+        window.state.syncTitleStyleToAllSlides({ textDecoration: isUnder ? 'none' : 'underline' });
+        this.syncContextualToolbar();
+        return;
+      }
       const el = window.state.getSelectedElement();
       if (!el) return;
       const isUnder = el.textDecoration === 'underline';
@@ -287,7 +330,12 @@ class SlideMakerApp {
     // Alignment
     ['left', 'center', 'right', 'justify'].forEach(align => {
       document.getElementById(`ctx-btn-align-${align}`)?.addEventListener('click', () => {
-        window.state.updateSelectedElements({ textAlign: align });
+        if (window.state.isDiagramTitleSelected) {
+          window.state.syncTitleStyleToAllSlides({ textAlign: align });
+          this.syncContextualToolbar();
+        } else {
+          window.state.updateSelectedElements({ textAlign: align });
+        }
       });
     });
 
@@ -309,9 +357,33 @@ class SlideMakerApp {
     const textColorInput = document.getElementById('ctx-text-color');
     if (textColorInput) {
       textColorInput.addEventListener('input', (e) => {
-        window.state.updateSelectedElements({ color: e.target.value });
+        if (window.state.isDiagramTitleSelected) {
+          window.state.syncTitleStyleToAllSlides({ color: e.target.value });
+        } else {
+          window.state.updateSelectedElements({ color: e.target.value });
+        }
       });
     }
+
+    // Sync Title Style to All Slides Button
+    document.getElementById('ctx-btn-sync-title')?.addEventListener('click', () => {
+      const el = window.state.getSelectedElement();
+      if (el) {
+        window.state.syncTitleStyleToAllSlides({
+          fontFamily: el.fontFamily,
+          fontSize: el.fontSize,
+          fontWeight: el.fontWeight,
+          fontStyle: el.fontStyle,
+          textDecoration: el.textDecoration,
+          color: el.color,
+          textAlign: el.textAlign
+        });
+        this.showToast('Title style synchronized across all slides');
+      } else if (window.state.isDiagramTitleSelected) {
+        window.state.syncTitleStyleToAllSlides(window.state.titleStyle);
+        this.showToast('Diagram title style synchronized across all slides');
+      }
+    });
 
     const fillColorInput = document.getElementById('ctx-fill-color');
     if (fillColorInput) {
@@ -358,24 +430,62 @@ class SlideMakerApp {
     if (!bar) return;
 
     const selected = window.state.getSelectedElement();
+    const isDiagTitle = window.state.isDiagramTitleSelected;
     const textGroup = document.getElementById('ctx-group-text');
     const shapeGroup = document.getElementById('ctx-group-shape');
     const layerGroup = document.getElementById('ctx-group-layering');
+    const syncTitleBtn = document.getElementById('ctx-btn-sync-title');
 
-    if (!selected) {
+    if (!selected && !isDiagTitle) {
       bar.classList.add('is-disabled');
       if (textGroup) textGroup.style.display = 'none';
       if (shapeGroup) shapeGroup.style.display = 'none';
       if (layerGroup) layerGroup.style.display = 'none';
+      if (syncTitleBtn) syncTitleBtn.style.display = 'none';
       return;
     }
 
     bar.classList.remove('is-disabled');
+
+    if (isDiagTitle) {
+      if (textGroup) textGroup.style.display = 'flex';
+      if (shapeGroup) shapeGroup.style.display = 'none';
+      if (layerGroup) layerGroup.style.display = 'none';
+      if (syncTitleBtn) syncTitleBtn.style.display = 'inline-flex';
+
+      const activeSlide = window.state.getActiveSlide();
+      const style = Object.assign({}, window.state.titleStyle, activeSlide?.zoomFlowData?.titleStyle || {});
+
+      const fontSelect = document.getElementById('ctx-font-family');
+      if (fontSelect && style.fontFamily) fontSelect.value = style.fontFamily;
+
+      const sizeInput = document.getElementById('ctx-font-size');
+      if (sizeInput && style.fontSize) sizeInput.value = style.fontSize;
+
+      const colorInput = document.getElementById('ctx-text-color');
+      if (colorInput && style.color && style.color.startsWith('#')) colorInput.value = style.color;
+
+      document.getElementById('ctx-btn-bold')?.classList.toggle('is-active', style.fontWeight === '700' || style.fontWeight === 'bold');
+      document.getElementById('ctx-btn-italic')?.classList.toggle('is-active', style.fontStyle === 'italic');
+      document.getElementById('ctx-btn-underline')?.classList.toggle('is-active', style.textDecoration === 'underline');
+
+      ['left', 'center', 'right', 'justify'].forEach(align => {
+        document.getElementById(`ctx-btn-align-${align}`)?.classList.toggle('is-active', (style.textAlign || 'left') === align);
+      });
+
+      document.getElementById('ctx-btn-list-ul')?.classList.remove('is-active');
+      document.getElementById('ctx-btn-list-ol')?.classList.remove('is-active');
+      return;
+    }
+
     if (layerGroup) layerGroup.style.display = 'flex';
 
     if (selected.type === 'text') {
       if (textGroup) textGroup.style.display = 'flex';
       if (shapeGroup) shapeGroup.style.display = 'none';
+
+      const isTitle = selected.textType === 'title' || (selected.id && selected.id.toLowerCase().includes('title'));
+      if (syncTitleBtn) syncTitleBtn.style.display = isTitle ? 'inline-flex' : 'none';
 
       const fontSelect = document.getElementById('ctx-font-family');
       if (fontSelect && selected.fontFamily) fontSelect.value = selected.fontFamily;
@@ -384,23 +494,29 @@ class SlideMakerApp {
       if (sizeInput && selected.fontSize) sizeInput.value = selected.fontSize;
 
       const colorInput = document.getElementById('ctx-text-color');
-      if (colorInput && selected.color) colorInput.value = selected.color;
+      if (colorInput && selected.color && selected.color.startsWith('#')) colorInput.value = selected.color;
 
       document.getElementById('ctx-btn-bold')?.classList.toggle('is-active', selected.fontWeight === '700' || selected.fontWeight === 'bold');
       document.getElementById('ctx-btn-italic')?.classList.toggle('is-active', selected.fontStyle === 'italic');
       document.getElementById('ctx-btn-underline')?.classList.toggle('is-active', selected.textDecoration === 'underline');
+
+      ['left', 'center', 'right', 'justify'].forEach(align => {
+        document.getElementById(`ctx-btn-align-${align}`)?.classList.toggle('is-active', (selected.textAlign || 'left') === align);
+      });
 
       const hasUl = selected.content && /<ul\b/i.test(selected.content);
       const hasOl = selected.content && /<ol\b/i.test(selected.content);
       document.getElementById('ctx-btn-list-ul')?.classList.toggle('is-active', !!hasUl);
       document.getElementById('ctx-btn-list-ol')?.classList.toggle('is-active', !!hasOl);
     } else if (selected.type === 'shape' || selected.type === 'icon') {
+      if (syncTitleBtn) syncTitleBtn.style.display = 'none';
       if (textGroup) textGroup.style.display = 'none';
       if (shapeGroup) shapeGroup.style.display = 'flex';
 
       const fillColor = document.getElementById('ctx-fill-color');
       if (fillColor) fillColor.value = selected.fillColor || selected.iconColor || CONFIG.colors.udesGreen;
     } else {
+      if (syncTitleBtn) syncTitleBtn.style.display = 'none';
       if (textGroup) textGroup.style.display = 'none';
       if (shapeGroup) shapeGroup.style.display = 'none';
     }
@@ -1074,6 +1190,8 @@ class SlideMakerApp {
 
     const selectedNode = this.selectedFlowNodeIndex >= 0 ? nodes[this.selectedFlowNodeIndex] : null;
 
+    const titleStyle = Object.assign({}, window.state.titleStyle, flowData.titleStyle || {});
+
     let html = `
       <div class="panel-section">
         <div class="section-header" style="justify-content:space-between;">
@@ -1083,7 +1201,52 @@ class SlideMakerApp {
 
         <div class="prop-field">
           <label>Diagram Title</label>
-          <input type="text" id="flow-prop-title" class="prop-input" value="${this.escapeHtml(flowData.title || 'Flow Diagram')}" placeholder="Diagram Title">
+          <input type="text" id="flow-prop-title" class="prop-input" value="${this.escapeHtml(flowData.title || '')}" placeholder="Diagram Title">
+        </div>
+
+        <div class="prop-field">
+          <label>Diagram Subtitle</label>
+          <input type="text" id="flow-prop-subtitle" class="prop-input" value="${this.escapeHtml(flowData.subtitle || '')}" placeholder="Optional Subtitle">
+        </div>
+
+        <!-- Title Typography & Style (Synchronized across all slides) -->
+        <div style="margin-top:10px;padding:10px;background:rgba(255,255,255,0.03);border:1px solid var(--border-subtle);border-radius:8px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <label style="font-size:11px;font-weight:700;color:var(--udes-lime);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
+              <i class="fa-solid fa-heading"></i> Title Typography & Style
+            </label>
+            <span style="font-size:10px;color:var(--text-secondary);" title="Styles synchronize across all slides">Synced</span>
+          </div>
+
+          <div class="prop-field">
+            <label style="font-size:11px;">Font Family</label>
+            <select id="flow-title-font" class="prop-select" style="font-size:11px;padding:4px 6px;">
+              ${CONFIG.fonts.map(f => `<option value="${f.name}" ${(titleStyle.fontFamily || CONFIG.defaultFont || 'JetBrains Mono') === f.name ? 'selected' : ''}>${f.name}</option>`).join('')}
+            </select>
+          </div>
+
+          <div class="prop-grid-2" style="margin-top:6px;">
+            <div class="prop-field">
+              <label style="font-size:11px;">Font Size</label>
+              <input type="number" id="flow-title-size" class="prop-input" value="${titleStyle.fontSize || 44}" min="16" max="96" style="font-size:11px;padding:4px 6px;">
+            </div>
+            <div class="prop-field">
+              <label style="font-size:11px;">Title Color</label>
+              <input type="color" id="flow-title-color" value="${titleStyle.color && titleStyle.color.startsWith('#') ? titleStyle.color : '#FFFFFF'}" style="width:100%;height:28px;border:none;border-radius:4px;cursor:pointer;background:transparent;">
+            </div>
+          </div>
+
+          <div style="display:flex;align-items:center;gap:6px;margin-top:8px;">
+            <button id="flow-title-bold" class="btn btn-secondary btn-sm ${titleStyle.fontWeight === '700' || titleStyle.fontWeight === 'bold' ? 'is-active' : ''}" style="flex:1;padding:4px;" title="Bold"><i class="fa-solid fa-bold"></i></button>
+            <button id="flow-title-italic" class="btn btn-secondary btn-sm ${titleStyle.fontStyle === 'italic' ? 'is-active' : ''}" style="flex:1;padding:4px;" title="Italic"><i class="fa-solid fa-italic"></i></button>
+            <button id="flow-title-align-left" class="btn btn-secondary btn-sm ${(titleStyle.textAlign || 'left') === 'left' ? 'is-active' : ''}" style="flex:1;padding:4px;" title="Align Left"><i class="fa-solid fa-align-left"></i></button>
+            <button id="flow-title-align-center" class="btn btn-secondary btn-sm ${titleStyle.textAlign === 'center' ? 'is-active' : ''}" style="flex:1;padding:4px;" title="Align Center"><i class="fa-solid fa-align-center"></i></button>
+            <button id="flow-title-align-right" class="btn btn-secondary btn-sm ${titleStyle.textAlign === 'right' ? 'is-active' : ''}" style="flex:1;padding:4px;" title="Align Right"><i class="fa-solid fa-align-right"></i></button>
+          </div>
+
+          <button id="flow-btn-sync-all-titles" class="btn btn-secondary btn-sm" style="width:100%;margin-top:10px;font-size:11px;padding:6px;color:var(--udes-lime);border-color:var(--udes-lime);background:rgba(127,194,63,0.08);" title="Apply this title style to all slides in the presentation">
+            <i class="fa-solid fa-arrows-rotate"></i> Sync Title Style to All Slides
+          </button>
         </div>
 
         <div class="prop-field">
@@ -1120,8 +1283,8 @@ class SlideMakerApp {
                   <span class="zf-node-badge-mini" style="background:${node.color || '#00A350'};">${i + 1}</span>
                 </div>
                 <div class="zf-node-item-info">
-                  <div class="zf-node-item-title">${this.escapeHtml(node.title || `Stage ${i + 1}`)}</div>
-                  <div class="zf-node-item-sub">${this.escapeHtml(node.subtitle || node.status || '')}</div>
+                  <div class="zf-node-item-title">${this.escapeHtml(node.title || `Node ${i + 1}`)}</div>
+                  <div class="zf-node-item-sub">${this.escapeHtml(node.subtitle || '')}</div>
                 </div>
                 <div class="zf-node-item-actions">
                   <button class="zf-node-action-btn zf-btn-move-up" data-index="${i}" title="Move Up" ${i === 0 ? 'disabled' : ''}>
@@ -1145,9 +1308,8 @@ class SlideMakerApp {
       html += `
         <!-- Selected Node Details -->
         <div class="panel-section">
-          <div class="section-header" style="justify-content:space-between;">
+          <div class="section-header">
             <h4><i class="fa-solid fa-sliders" style="color:var(--udes-lime);"></i> Node ${this.selectedFlowNodeIndex + 1} Properties</h4>
-            <span class="zf-badge" style="background:${selectedNode.color || '#00A350'}33;color:${selectedNode.color || '#00A350'};border-color:${selectedNode.color || '#00A350'};">${this.escapeHtml(selectedNode.status || `Stage ${this.selectedFlowNodeIndex + 1}`)}</span>
           </div>
 
           <div class="prop-field">
@@ -1156,21 +1318,15 @@ class SlideMakerApp {
           </div>
 
           <div class="prop-field">
-            <label>Subtitle / Description</label>
+            <label>Subtitle / Description (Optional)</label>
             <input type="text" id="flow-node-subtitle" class="prop-input" value="${this.escapeHtml(selectedNode.subtitle || '')}">
           </div>
 
-          <div class="prop-grid-2">
-            <div class="prop-field">
-              <label>Stage / Badge</label>
-              <input type="text" id="flow-node-status" class="prop-input" value="${this.escapeHtml(selectedNode.status || '')}">
-            </div>
-            <div class="prop-field">
-              <label>Color</label>
-              <div style="display:flex;align-items:center;gap:6px;">
-                <input type="color" id="flow-node-color" value="${selectedNode.color || '#00A350'}" style="width:36px;height:30px;border-radius:4px;border:none;cursor:pointer;background:transparent;">
-                <input type="text" id="flow-node-color-text" class="prop-input" value="${selectedNode.color || '#00A350'}" style="flex:1;">
-              </div>
+          <div class="prop-field">
+            <label>Color</label>
+            <div style="display:flex;align-items:center;gap:6px;">
+              <input type="color" id="flow-node-color" value="${selectedNode.color || '#00A350'}" style="width:36px;height:30px;border-radius:4px;border:none;cursor:pointer;background:transparent;">
+              <input type="text" id="flow-node-color-text" class="prop-input" value="${selectedNode.color || '#00A350'}" style="flex:1;">
             </div>
           </div>
 
@@ -1258,17 +1414,17 @@ class SlideMakerApp {
         ` : `
           <div class="zf-inspector-conns-list" style="display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;">
             ${conns.map((conn) => {
-              const fromN = nodes.find(n => n.id === conn.from);
-              const toN = nodes.find(n => n.id === conn.to);
-              const fromTitle = fromN ? fromN.title : conn.from;
-              const toTitle = toN ? toN.title : conn.to;
-              const fromColor = fromN ? (fromN.color || '#00A350') : '#00A350';
-              const toColor = toN ? (toN.color || '#00A350') : '#00A350';
-              const fPort = conn.fromPort || 'right';
-              const tPort = conn.toPort || 'left';
-              const isManual = conn.mode === 'manual' || (Array.isArray(conn.points) && conn.points.length === 3);
+      const fromN = nodes.find(n => n.id === conn.from);
+      const toN = nodes.find(n => n.id === conn.to);
+      const fromTitle = fromN ? fromN.title : conn.from;
+      const toTitle = toN ? toN.title : conn.to;
+      const fromColor = fromN ? (fromN.color || '#00A350') : '#00A350';
+      const toColor = toN ? (toN.color || '#00A350') : '#00A350';
+      const fPort = conn.fromPort || 'right';
+      const tPort = conn.toPort || 'left';
+      const isManual = conn.mode === 'manual' || (Array.isArray(conn.points) && conn.points.length === 3);
 
-              return `
+      return `
                 <div class="zf-inspector-conn-item" style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:6px;font-size:11px;">
                   <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;">
                     <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${fromColor};flex-shrink:0;"></span>
@@ -1289,7 +1445,7 @@ class SlideMakerApp {
                   </div>
                 </div>
               `;
-            }).join('')}
+    }).join('')}
           </div>
         `}
 
@@ -1336,9 +1492,76 @@ class SlideMakerApp {
   attachFlowInspectorListeners() {
     const titleInput = document.getElementById('flow-prop-title');
     titleInput?.addEventListener('input', (e) => {
-      this.updateFlowSettings('title', e.target.value);
+      const val = e.target.value;
+      const activeSlide = window.state ? window.state.getActiveSlide() : null;
+      if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
+        activeSlide.zoomFlowData.title = val;
+        const canvasTitle = document.querySelector('#slide-elements-layer .zf-diagram-title');
+        if (canvasTitle) canvasTitle.textContent = val;
+      }
+    });
+    titleInput?.addEventListener('change', () => {
+      window.state?.saveHistory('Change Diagram Title');
+      if (window.slideManager) window.slideManager.renderThumbnails();
     });
 
+    const subtitleInput = document.getElementById('flow-prop-subtitle');
+    subtitleInput?.addEventListener('input', (e) => {
+      const val = e.target.value;
+      const activeSlide = window.state ? window.state.getActiveSlide() : null;
+      if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
+        activeSlide.zoomFlowData.subtitle = val;
+        const canvasSub = document.querySelector('#slide-elements-layer .zf-diagram-subtitle');
+        if (canvasSub) canvasSub.textContent = val || 'Click to add subtitle';
+      }
+    });
+    // Title Styling Controls (Synchronized across all slides)
+    document.getElementById('flow-title-font')?.addEventListener('change', (e) => {
+      window.state?.syncTitleStyleToAllSlides({ fontFamily: e.target.value });
+      this.syncContextualToolbar();
+    });
+
+    document.getElementById('flow-title-size')?.addEventListener('change', (e) => {
+      const sz = parseInt(e.target.value, 10);
+      if (sz) {
+        window.state?.syncTitleStyleToAllSlides({ fontSize: sz });
+        this.syncContextualToolbar();
+      }
+    });
+
+    document.getElementById('flow-title-color')?.addEventListener('input', (e) => {
+      window.state?.syncTitleStyleToAllSlides({ color: e.target.value });
+      this.syncContextualToolbar();
+    });
+
+    document.getElementById('flow-title-bold')?.addEventListener('click', () => {
+      const isBold = (window.state.titleStyle?.fontWeight === '700' || window.state.titleStyle?.fontWeight === 'bold');
+      window.state?.syncTitleStyleToAllSlides({ fontWeight: isBold ? '400' : '700' });
+      document.getElementById('flow-title-bold')?.classList.toggle('is-active', !isBold);
+      this.syncContextualToolbar();
+    });
+
+    document.getElementById('flow-title-italic')?.addEventListener('click', () => {
+      const isItalic = window.state.titleStyle?.fontStyle === 'italic';
+      window.state?.syncTitleStyleToAllSlides({ fontStyle: isItalic ? 'normal' : 'italic' });
+      document.getElementById('flow-title-italic')?.classList.toggle('is-active', !isItalic);
+      this.syncContextualToolbar();
+    });
+
+    ['left', 'center', 'right'].forEach(align => {
+      document.getElementById(`flow-title-align-${align}`)?.addEventListener('click', () => {
+        window.state?.syncTitleStyleToAllSlides({ textAlign: align });
+        ['left', 'center', 'right'].forEach(a => {
+          document.getElementById(`flow-title-align-${a}`)?.classList.toggle('is-active', a === align);
+        });
+        this.syncContextualToolbar();
+      });
+    });
+
+    document.getElementById('flow-btn-sync-all-titles')?.addEventListener('click', () => {
+      window.state?.syncTitleStyleToAllSlides(window.state.titleStyle);
+      this.showToast('Diagram title style synchronized across all slides');
+    });
 
     const themeSelect = document.getElementById('flow-prop-theme');
     themeSelect?.addEventListener('change', (e) => {
@@ -1442,11 +1665,6 @@ class SlideMakerApp {
       this.updateFlowNode(this.selectedFlowNodeIndex, { subtitle: e.target.value });
     });
 
-    const nodeStatusInput = document.getElementById('flow-node-status');
-    nodeStatusInput?.addEventListener('input', (e) => {
-      this.updateFlowNode(this.selectedFlowNodeIndex, { status: e.target.value });
-    });
-
     const nodeColorInput = document.getElementById('flow-node-color');
     const nodeColorText = document.getElementById('flow-node-color-text');
     nodeColorInput?.addEventListener('input', (e) => {
@@ -1524,16 +1742,12 @@ class SlideMakerApp {
 
     const newNode = {
       id: `node_${Date.now()}_${idx + 1}`,
-      title: nodeData.title || `Stage ${idx + 1}`,
-      subtitle: nodeData.subtitle || 'Implementation focus & key milestones',
-      status: nodeData.status || `Stage ${idx + 1}`,
-      metricVal: nodeData.metricVal || '',
-      metricLbl: nodeData.metricLbl || '',
-      icon: nodeData.icon || 'fa-circle-dot',
+      title: nodeData.title || `Node ${idx + 1}`,
+      subtitle: nodeData.subtitle || '',
       color: color,
-      summary: nodeData.summary || `Detailed execution plan and strategic milestones for Stage ${idx + 1}.`,
+      summary: nodeData.summary || `Detailed execution plan for Node ${idx + 1}.`,
       bullets: nodeData.bullets || [
-        `Strategic objective for Stage ${idx + 1}`,
+        `Strategic objective for Node ${idx + 1}`,
         'Deliverable and execution milestone'
       ]
     };
@@ -1617,10 +1831,10 @@ class SlideMakerApp {
     const flowData = activeSlide.zoomFlowData;
     flowData.connections = flowData.connections || [];
 
-    const exists = flowData.connections.some(c => 
-      c.from === fromId && 
-      c.to === toId && 
-      (c.fromPort || 'right') === fromPort && 
+    const exists = flowData.connections.some(c =>
+      c.from === fromId &&
+      c.to === toId &&
+      (c.fromPort || 'right') === fromPort &&
       (c.toPort || 'left') === toPort
     );
     if (exists) return;
@@ -1871,6 +2085,42 @@ class SlideMakerApp {
       .replace(/'/g, '&#039;');
   }
 
+  showToast(message) {
+    let toast = document.getElementById('slidemaker-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'slidemaker-toast';
+      toast.style.position = 'fixed';
+      toast.style.bottom = '28px';
+      toast.style.left = '50%';
+      toast.style.transform = 'translateX(-50%)';
+      toast.style.background = 'rgba(15, 23, 42, 0.95)';
+      toast.style.border = '1px solid var(--udes-lime, #7FC23F)';
+      toast.style.color = '#FFFFFF';
+      toast.style.padding = '8px 18px';
+      toast.style.borderRadius = '24px';
+      toast.style.fontSize = '12px';
+      toast.style.fontWeight = '600';
+      toast.style.zIndex = '9999';
+      toast.style.boxShadow = '0 8px 30px rgba(0,0,0,0.6)';
+      toast.style.display = 'flex';
+      toast.style.alignItems = 'center';
+      toast.style.gap = '8px';
+      toast.style.transition = 'all 0.25s ease';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<i class="fa-solid fa-circle-check" style="color:var(--udes-lime, #7FC23F);"></i> <span>${message}</span>`;
+    toast.style.opacity = '1';
+    toast.style.pointerEvents = 'auto';
+    clearTimeout(this._toastTimer);
+    this._toastTimer = setTimeout(() => {
+      if (toast) {
+        toast.style.opacity = '0';
+        toast.style.pointerEvents = 'none';
+      }
+    }, 2400);
+  }
+
   // --- 8. Zoom Flow Presentation Studio Controller ---
 
   openZoomFlowStudio(mode = 'new-slide') {
@@ -1892,6 +2142,12 @@ class SlideMakerApp {
     // Set theme dropdown
     const themeSel = document.getElementById('zf-theme-select');
     if (themeSel) themeSel.value = this.currentZoomFlowData.theme || 'udes-emerald';
+
+    // Set title and subtitle inputs
+    const titleInput = document.getElementById('zf-title-input');
+    if (titleInput) titleInput.value = this.currentZoomFlowData.title || '';
+    const subtitleInput = document.getElementById('zf-subtitle-input');
+    if (subtitleInput) subtitleInput.value = this.currentZoomFlowData.subtitle || '';
 
     this.renderZoomFlowTemplates();
     this.renderZoomFlowNodesList();
@@ -1934,6 +2190,11 @@ class SlideMakerApp {
           this.currentZoomFlowData = JSON.parse(JSON.stringify(found));
           const themeSel = document.getElementById('zf-theme-select');
           if (themeSel) themeSel.value = this.currentZoomFlowData.theme;
+
+          const titleInput = document.getElementById('zf-title-input');
+          if (titleInput) titleInput.value = this.currentZoomFlowData.title || '';
+          const subtitleInput = document.getElementById('zf-subtitle-input');
+          if (subtitleInput) subtitleInput.value = this.currentZoomFlowData.subtitle || '';
 
           container.querySelectorAll('.zf-template-card').forEach(c => c.classList.remove('is-active'));
           card.classList.add('is-active');
@@ -2075,6 +2336,20 @@ class SlideMakerApp {
   bindZoomFlowStudioEvents() {
     document.getElementById('btn-close-zoom-flow')?.addEventListener('click', () => this.closeZoomFlowStudio());
 
+    // Title & Subtitle inputs
+    document.getElementById('zf-title-input')?.addEventListener('input', (e) => {
+      if (this.currentZoomFlowData) {
+        this.currentZoomFlowData.title = e.target.value;
+        this.renderZoomFlowStudioPreview();
+      }
+    });
+
+    document.getElementById('zf-subtitle-input')?.addEventListener('input', (e) => {
+      if (this.currentZoomFlowData) {
+        this.currentZoomFlowData.subtitle = e.target.value;
+        this.renderZoomFlowStudioPreview();
+      }
+    });
 
     // Theme select change
     document.getElementById('zf-theme-select')?.addEventListener('change', (e) => {
@@ -2098,13 +2373,9 @@ class SlideMakerApp {
 
       this.currentZoomFlowData.nodes.push({
         id: `node_${count + 1}`,
-        title: `Stage ${count + 1}: Strategic Milestone`,
-        subtitle: 'Key Deliverable & Next Phase',
-        icon: 'fa-star',
+        title: `Node ${count + 1}`,
+        subtitle: '',
         color: color,
-        status: `Stage ${count + 1}`,
-        metricVal: '100%',
-        metricLbl: 'Target Goal',
         summary: 'Detailed explanation of this milestone objective and accomplishments.',
         bullets: ['Key outcome and accomplishment', 'Cross-functional coordination and handoff']
       });

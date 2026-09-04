@@ -60,7 +60,7 @@ class SlideManager {
         textWrap.className = 'thumb-text-wrap';
         textWrap.innerHTML = `
           <div class="thumb-text-header">
-            <span class="thumb-text-tag">${slide.flowNodeStatus || `Stage ${idx + 1}`}</span>
+            <span class="thumb-text-tag">Node ${idx + 1}</span>
             <i class="fa-solid ${slide.flowNodeIcon || 'fa-file-lines'}" style="color:${slide.flowNodeColor || 'var(--udes-lime)'};font-size:11px;"></i>
           </div>
           <div class="thumb-text-title" title="${slide.flowNodeTitle || slide.title || 'Slide Title'}">${slide.flowNodeTitle || slide.title || 'Slide Title'}</div>

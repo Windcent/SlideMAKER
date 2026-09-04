@@ -171,10 +171,13 @@
 }
 
 /* Table Specific Styles */
-.slide-table th, .slide-table td {
+.slide-table th,
+.slide-table td {
   transition: background-color 0.15s ease;
 }
-.slide-table th:focus, .slide-table td:focus {
+
+.slide-table th:focus,
+.slide-table td:focus {
   outline: 2px solid var(--udes-green);
   background-color: #f0fdf4 !important;
   color: #0f172a !important;
@@ -218,14 +221,53 @@
   z-index: 1001;
 }
 
-.handle-nw { top: -5px; left: -5px; cursor: nwse-resize; }
-.handle-n  { top: -5px; left: calc(50% - 5px); cursor: ns-resize; }
-.handle-ne { top: -5px; right: -5px; cursor: nesw-resize; }
-.handle-e  { top: calc(50% - 5px); right: -5px; cursor: ew-resize; }
-.handle-se { bottom: -5px; right: -5px; cursor: nwse-resize; }
-.handle-s  { bottom: -5px; left: calc(50% - 5px); cursor: ns-resize; }
-.handle-sw { bottom: -5px; left: -5px; cursor: nesw-resize; }
-.handle-w  { top: calc(50% - 5px); left: -5px; cursor: ew-resize; }
+.handle-nw {
+  top: -5px;
+  left: -5px;
+  cursor: nwse-resize;
+}
+
+.handle-n {
+  top: -5px;
+  left: calc(50% - 5px);
+  cursor: ns-resize;
+}
+
+.handle-ne {
+  top: -5px;
+  right: -5px;
+  cursor: nesw-resize;
+}
+
+.handle-e {
+  top: calc(50% - 5px);
+  right: -5px;
+  cursor: ew-resize;
+}
+
+.handle-se {
+  bottom: -5px;
+  right: -5px;
+  cursor: nwse-resize;
+}
+
+.handle-s {
+  bottom: -5px;
+  left: calc(50% - 5px);
+  cursor: ns-resize;
+}
+
+.handle-sw {
+  bottom: -5px;
+  left: -5px;
+  cursor: nesw-resize;
+}
+
+.handle-w {
+  top: calc(50% - 5px);
+  left: -5px;
+  cursor: ew-resize;
+}
 
 /* Rotation Stem & Handle */
 .rotate-stem {

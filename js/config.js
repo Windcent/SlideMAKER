@@ -88,14 +88,16 @@ const CONFIG = {
     { name: 'UdeS Emblem (Vector/AVIF)', src: 'assets/logo_uds_a.avif' }
   ],
 
+  defaultFont: 'JetBrains Mono',
+
   // Available Typography
   fonts: [
+    { name: 'JetBrains Mono', family: "'JetBrains Mono', monospace", category: 'Code / Technical (Default)' },
     { name: 'Outfit', family: "'Outfit', sans-serif", category: 'Modern / Titles' },
     { name: 'Inter', family: "'Inter', sans-serif", category: 'Body & Neutral' },
     { name: 'Montserrat', family: "'Montserrat', sans-serif", category: 'Geometric' },
     { name: 'Roboto', family: "'Roboto', sans-serif", category: 'Standard' },
-    { name: 'Playfair Display', family: "'Playfair Display', serif", category: 'Elegant / Serif' },
-    { name: 'JetBrains Mono', family: "'JetBrains Mono', monospace", category: 'Code / Technical' }
+    { name: 'Playfair Display', family: "'Playfair Display', serif", category: 'Elegant / Serif' }
   ],
 
   // Standard Canvas Dimensions (16:9 Widescreen by default matching Google Slides)

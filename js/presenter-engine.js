@@ -259,6 +259,10 @@ class PresenterEngine {
           if (this.slideOverlay) {
             this.slideOverlay.innerHTML = '';
             this.slideOverlay.classList.remove('zf-slide-fade-exit');
+            if (toNodeIdx === -1) {
+              this.slideOverlay.style.display = 'none';
+              this.slideOverlay.style.pointerEvents = 'none';
+            }
           }
 
           this.currentZoomController.transitionSlideChange(fromNodeIdx, toNodeIdx, () => {
@@ -344,6 +348,7 @@ class PresenterEngine {
         const dims = CONFIG.aspectRatios[window.state.aspectRatio] || CONFIG.aspectRatios['16_9'];
         const controller = window.zoomFlowEngine.createZoomFlowDOM(parentFlowSlide.zoomFlowData, {
           isPresenter: true,
+          flowSlideId: parentFlowSlide.id,
           width: dims.width,
           height: dims.height,
           onNodeChange: (idx, node) => this.syncPresenterZoomHUD(idx, node)
@@ -355,6 +360,8 @@ class PresenterEngine {
         // Overlay container on top of the flow stage for child slide elements
         this.slideOverlay = document.createElement('div');
         this.slideOverlay.className = 'zf-slide-overlay';
+        this.slideOverlay.style.display = 'none';
+        this.slideOverlay.style.pointerEvents = 'none';
         elementsLayer.appendChild(this.slideOverlay);
       }
 
@@ -371,6 +378,8 @@ class PresenterEngine {
         if (this.slideOverlay) {
           this.slideOverlay.innerHTML = '';
           this.slideOverlay.classList.remove('zf-slide-fade-enter', 'zf-slide-fade-exit');
+          this.slideOverlay.style.display = 'none';
+          this.slideOverlay.style.pointerEvents = 'none';
         }
         this.currentZoomController.zoomOutToOverview();
         this.syncPresenterZoomHUD(-1, null);
@@ -443,6 +452,8 @@ class PresenterEngine {
   renderSlideOverlay(slide) {
     if (!this.slideOverlay) return;
     this.slideOverlay.innerHTML = '';
+    this.slideOverlay.style.display = 'block';
+    this.slideOverlay.style.pointerEvents = 'auto';
     this.slideOverlay.className = 'zf-slide-overlay zf-slide-fade-enter';
 
     if (this.currentZoomController && typeof this.currentZoomController.setSlideOverlayState === 'function') {

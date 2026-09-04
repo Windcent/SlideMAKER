@@ -13,6 +13,19 @@ class PresentationState {
     this.autoFitZoom = true;
     this.isPresenterMode = false;
 
+    // Synchronized Global Title Style
+    this.titleStyle = {
+      fontFamily: 'JetBrains Mono',
+      fontSize: 44,
+      fontWeight: '700',
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      color: '#FFFFFF',
+      textAlign: 'left',
+      lineHeight: 1.2
+    };
+    this.isDiagramTitleSelected = false;
+
     // Undo / Redo History
     this.undoStack = [];
     this.redoStack = [];
@@ -117,6 +130,7 @@ class PresentationState {
 
   // Select single element
   selectElement(elementId, addToSelection = false) {
+    this.isDiagramTitleSelected = false;
     if (!elementId) {
       this.clearSelection();
       return;
@@ -135,12 +149,14 @@ class PresentationState {
 
   // Select multiple elements
   selectMultiple(elementIds) {
+    this.isDiagramTitleSelected = false;
     this.selectedElementIds = [...elementIds];
     this.notify('selection', { selectedIds: [...this.selectedElementIds] });
   }
 
   // Select all elements on current slide
   selectAll() {
+    this.isDiagramTitleSelected = false;
     const slide = this.getActiveSlide();
     if (!slide) return;
     this.selectedElementIds = slide.elements.map(el => el.id);
@@ -149,9 +165,24 @@ class PresentationState {
 
   // Clear current selection
   clearSelection() {
+    this.isDiagramTitleSelected = false;
     if (this.selectedElementIds.length > 0) {
       this.selectedElementIds = [];
       this.notify('selection', { selectedIds: [] });
+    }
+  }
+
+  // Select Zoom Flow Diagram Title
+  selectDiagramTitle() {
+    this.selectedElementIds = [];
+    this.isDiagramTitleSelected = true;
+    this.notify('selection', { isDiagramTitle: true, selectedIds: [] });
+  }
+
+  deselectDiagramTitle() {
+    if (this.isDiagramTitleSelected) {
+      this.isDiagramTitleSelected = false;
+      this.notify('selection', { isDiagramTitle: false, selectedIds: [] });
     }
   }
 
@@ -160,6 +191,7 @@ class PresentationState {
     if (index >= 0 && index < this.slides.length && index !== this.activeSlideIndex) {
       this.activeSlideIndex = index;
       this.selectedElementIds = [];
+      this.isDiagramTitleSelected = false;
       this.notify('slideChange', { activeIndex: index });
     }
   }
@@ -451,6 +483,14 @@ class PresentationState {
 
     Object.assign(el, changes);
     this.notify('elementUpdated', { elementId, changes, element: el });
+
+    if (el.type === 'text' && (el.textType === 'title' || (el.id && el.id.toLowerCase().includes('title')))) {
+      const styleProps = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'textAlign', 'lineHeight', 'letterSpacing', 'shadowBlur', 'shadowColor', 'shadowOffsetX', 'shadowOffsetY'];
+      const hasStyleChange = styleProps.some(prop => changes[prop] !== undefined);
+      if (hasStyleChange) {
+        this.syncTitleStyleToAllSlides(changes, slide.id, false);
+      }
+    }
   }
 
   updateSelectedElements(changes, saveToHistory = true) {
@@ -461,13 +501,101 @@ class PresentationState {
     const slide = this.getActiveSlide();
     if (!slide) return;
 
+    let hasTitleElement = false;
     this.selectedElementIds.forEach(id => {
       const el = slide.elements.find(e => e.id === id);
       if (el) {
         Object.assign(el, changes);
+        if (el.type === 'text' && (el.textType === 'title' || (el.id && el.id.toLowerCase().includes('title')))) {
+          hasTitleElement = true;
+        }
       }
     });
     this.notify('elementsUpdated', { ids: this.selectedElementIds, changes });
+
+    // Synchronize title style across all slides if any title was edited
+    const styleProps = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'textAlign', 'lineHeight', 'letterSpacing', 'shadowBlur', 'shadowColor', 'shadowOffsetX', 'shadowOffsetY'];
+    const hasStyleChange = styleProps.some(prop => changes[prop] !== undefined);
+    if (hasTitleElement && hasStyleChange) {
+      this.syncTitleStyleToAllSlides(changes, slide.id, false);
+    }
+  }
+
+  syncTitleStyleToAllSlides(changes, sourceSlideId = null, saveHistory = true) {
+    if (!changes || typeof changes !== 'object') return;
+
+    if (saveHistory) {
+      this.saveHistory('Sync Title Style to All Slides');
+    }
+
+    const styleProps = ['fontFamily', 'fontSize', 'fontWeight', 'fontStyle', 'textDecoration', 'color', 'textAlign', 'lineHeight', 'letterSpacing', 'shadowBlur', 'shadowColor', 'shadowOffsetX', 'shadowOffsetY'];
+    const titleChanges = {};
+    styleProps.forEach(prop => {
+      if (changes[prop] !== undefined) {
+        titleChanges[prop] = changes[prop];
+      }
+    });
+
+    if (Object.keys(titleChanges).length === 0) return;
+
+    this.titleStyle = Object.assign(this.titleStyle || {
+      fontFamily: 'JetBrains Mono',
+      fontSize: 44,
+      fontWeight: '700',
+      fontStyle: 'normal',
+      textDecoration: 'none',
+      color: '#FFFFFF',
+      textAlign: 'left',
+      lineHeight: 1.2
+    }, titleChanges);
+
+    // 1. Update all title elements across all regular slides
+    this.slides.forEach(slide => {
+      if (slide.elements && Array.isArray(slide.elements)) {
+        slide.elements.forEach(el => {
+          if (el.type === 'text' && (el.textType === 'title' || (el.id && el.id.toLowerCase().includes('title')))) {
+            Object.assign(el, titleChanges);
+          }
+        });
+      }
+
+      // 2. Update Zoom Flow diagram slides
+      if (slide.isZoomFlow && slide.zoomFlowData) {
+        slide.zoomFlowData.titleStyle = Object.assign(slide.zoomFlowData.titleStyle || {}, titleChanges);
+      }
+    });
+
+    // 3. Live update canvas active slide
+    const activeSlide = this.getActiveSlide();
+    if (activeSlide) {
+      if (activeSlide.isZoomFlow) {
+        const titleEl = document.querySelector('#slide-elements-layer .zf-diagram-title');
+        const headerEl = document.querySelector('#slide-elements-layer .zf-diagram-header');
+        if (titleEl) {
+          if (titleChanges.fontFamily) titleEl.style.fontFamily = titleChanges.fontFamily;
+          if (titleChanges.fontSize) titleEl.style.fontSize = `${titleChanges.fontSize}px`;
+          if (titleChanges.fontWeight) titleEl.style.fontWeight = titleChanges.fontWeight;
+          if (titleChanges.fontStyle) titleEl.style.fontStyle = titleChanges.fontStyle;
+          if (titleChanges.textDecoration) titleEl.style.textDecoration = titleChanges.textDecoration;
+          if (titleChanges.color) titleEl.style.color = titleChanges.color;
+          if (titleChanges.textAlign) {
+            titleEl.style.textAlign = titleChanges.textAlign;
+            if (headerEl) {
+              headerEl.style.alignItems = titleChanges.textAlign === 'center' ? 'center' : (titleChanges.textAlign === 'right' ? 'flex-end' : 'flex-start');
+              headerEl.style.textAlign = titleChanges.textAlign;
+            }
+          }
+        }
+      } else if (window.canvasEngine) {
+        window.canvasEngine.renderActiveSlide(false, true);
+      }
+    }
+
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+
+    this.notify('titleStyleSynced', { titleChanges });
   }
 
   deleteSelectedElements() {
