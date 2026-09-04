@@ -122,7 +122,10 @@ class CanvasEngine {
   }
 
   handleStateChange(type, details) {
-    if (type === 'slideChange' || type === 'slideAdded' || type === 'slideDeleted' || type === 'presentationLoaded' || type === 'historyRestore') {
+    if (type === 'historyRestore') {
+      // Instant restoration on undo/redo without layout recalculation or fade-in delays
+      this.renderActiveSlide(true, true);
+    } else if (type === 'slideChange' || type === 'slideAdded' || type === 'slideDuplicated' || type === 'slideDeleted' || type === 'slideReordered' || type === 'presentationLoaded') {
       this.updateStageDimensions();
       if (window.state.autoFitZoom) {
         this.fitToWindow();
@@ -135,7 +138,7 @@ class CanvasEngine {
     } else if (type === 'elementAdded' || type === 'elementsDeleted' || type === 'elementsDuplicated' || type === 'elementsPasted' || type === 'layerOrderChanged') {
       this.renderActiveSlide();
     } else if (type === 'elementUpdated' || type === 'elementsUpdated') {
-      this.renderActiveSlide(false);
+      this.renderActiveSlide(false, true);
     }
   }
 
@@ -151,12 +154,12 @@ class CanvasEngine {
 
   // --- Main Slide Rendering ---
 
-  renderActiveSlide(updateSelection = true) {
+  renderActiveSlide(updateSelection = true, isInstant = false) {
     const slide = window.state.getActiveSlide();
     if (!slide || !this.stage) return;
 
     this.renderBackground();
-    this.renderElements();
+    this.renderElements(isInstant);
 
     if (updateSelection) {
       this.renderSelectionOverlay();
@@ -173,6 +176,15 @@ class CanvasEngine {
 
     const slide = window.state.getActiveSlide();
     if (!slide) return;
+
+    if (slide.isZoomFlow) {
+      const themeKey = slide.zoomFlowData?.theme || 'udes-emerald';
+      const theme = window.zoomFlowEngine ? window.zoomFlowEngine.THEMES[themeKey] : null;
+      bgEl.className = 'slide-background';
+      bgEl.style.backgroundImage = 'none';
+      bgEl.style.background = theme ? theme.background : '#060910';
+      return;
+    }
 
     const bg = slide.background || { type: 'color', value: '#FFFFFF' };
     bgEl.className = 'slide-background';
@@ -191,7 +203,7 @@ class CanvasEngine {
     }
   }
 
-  renderElements() {
+  renderElements(isInstant = false) {
     let elementsLayer = document.getElementById('slide-elements-layer');
     if (!elementsLayer) {
       elementsLayer = document.createElement('div');
@@ -211,6 +223,33 @@ class CanvasEngine {
 
     // Track active DOM elements to keep DOM updates minimal
     elementsLayer.innerHTML = '';
+    elementsLayer.className = isInstant ? 'canvas-elements-layer' : 'canvas-elements-layer zf-slide-fade-enter';
+
+    // Handle Custom Interactive Zoom Flow Slide
+    if (slide.isZoomFlow && slide.zoomFlowData && window.zoomFlowEngine) {
+      const dims = this.getSlideDimensions();
+      const controller = window.zoomFlowEngine.createZoomFlowDOM(slide.zoomFlowData, {
+        isEditor: true,
+        width: dims.width,
+        height: dims.height
+      });
+      elementsLayer.appendChild(controller.wrapper);
+      this.currentZoomFlowController = controller;
+
+      // If returning from a child slide, perform smooth zoom out animation to overview!
+      if (this.returningFromNodeIndex !== undefined && this.returningFromNodeIndex !== null) {
+        const fromIdx = this.returningFromNodeIndex;
+        this.returningFromNodeIndex = null;
+        if (typeof controller.setNodePositionInstant === 'function') {
+          controller.setNodePositionInstant(fromIdx);
+          requestAnimationFrame(() => {
+            controller.zoomOutToOverview();
+          });
+        }
+      }
+
+      return;
+    }
 
     slide.elements.forEach(el => {
       const elNode = this.createElementDOM(el);
@@ -221,6 +260,40 @@ class CanvasEngine {
         this.renderChartElement(el);
       }
     });
+
+    // If this is a child slide linked to a Zoom Flow diagram, render Return Breadcrumb banner on top
+    if (slide.isFlowChild) {
+      const banner = document.createElement('div');
+      banner.className = 'zf-child-breadcrumb-banner';
+      banner.style.zIndex = '2000';
+      banner.style.pointerEvents = 'auto';
+      banner.innerHTML = `
+        <i class="fa-solid fa-arrow-left" style="color:var(--udes-lime);font-size:12px;"></i>
+        <span>Return to Flow Diagram</span>
+      `;
+      banner.title = 'Click to return to the Main Flow Diagram';
+      banner.addEventListener('click', (e) => {
+        e.stopPropagation();
+        this.returningFromNodeIndex = slide.flowNodeIndex !== undefined ? slide.flowNodeIndex : 0;
+        elementsLayer.classList.remove('zf-slide-fade-enter');
+        elementsLayer.classList.add('zf-slide-fade-exit');
+        setTimeout(() => {
+          elementsLayer.classList.remove('zf-slide-fade-exit');
+          if (slide.parentFlowSlideId) {
+            const parentIdx = window.state.slides.findIndex(s => s.id === slide.parentFlowSlideId);
+            if (parentIdx !== -1) {
+              window.state.setActiveSlideIndex(parentIdx);
+              return;
+            }
+          }
+          const anyFlowIdx = window.state.slides.findIndex(s => s.isZoomFlow);
+          if (anyFlowIdx !== -1) {
+            window.state.setActiveSlideIndex(anyFlowIdx);
+          }
+        }, 220);
+      });
+      elementsLayer.appendChild(banner);
+    }
   }
 
   createElementDOM(el) {
@@ -246,8 +319,24 @@ class CanvasEngine {
 
     // Attach double-click for inline editing if text
     if (el.type === 'text') {
+      let lastClickTime = 0;
+
+      container.addEventListener('mousedown', (e) => {
+        if (e.button === 0 && !this.isInlineEditing) {
+          const now = Date.now();
+          if (now - lastClickTime < 380) {
+            e.stopPropagation();
+            this.startInlineEditing(el.id, e);
+          }
+          lastClickTime = now;
+        }
+      });
+
       container.addEventListener('dblclick', (e) => {
-        this.startInlineEditing(el.id, e);
+        if (e.button === 0) {
+          e.stopPropagation();
+          this.startInlineEditing(el.id, e);
+        }
       });
     }
 
@@ -561,7 +650,23 @@ class CanvasEngine {
 
     container.classList.add('is-editing');
 
+    // Handle Tab / Shift+Tab for bullet levels & Esc to exit
+    const keydownHandler = (evt) => {
+      if (evt.key === 'Tab') {
+        evt.preventDefault();
+        if (evt.shiftKey) {
+          document.execCommand('outdent', false, null);
+        } else {
+          document.execCommand('indent', false, null);
+        }
+      } else if (evt.key === 'Escape') {
+        this.endInlineEditing();
+      }
+    };
+    inner.addEventListener('keydown', keydownHandler);
+
     inner.addEventListener('blur', () => {
+      inner.removeEventListener('keydown', keydownHandler);
       this.endInlineEditing();
     }, { once: true });
   }
@@ -602,6 +707,11 @@ class CanvasEngine {
     }
 
     overlay.innerHTML = '';
+    const slide = window.state.getActiveSlide();
+    if (slide && slide.isZoomFlow) {
+      overlay.style.display = 'none';
+      return;
+    }
     const selected = window.state.getSelectedElements();
 
     if (selected.length === 0 || this.isInlineEditing) {
@@ -621,6 +731,15 @@ class CanvasEngine {
       box.style.width = `${el.width}px`;
       box.style.height = `${el.height}px`;
       box.style.transform = `rotate(${el.rotation || 0}deg)`;
+
+      if (el.type === 'text') {
+        box.addEventListener('dblclick', (e) => {
+          if (e.button === 0) {
+            e.stopPropagation();
+            this.startInlineEditing(el.id, e);
+          }
+        });
+      }
 
       // 8 Resize Handles
       const handles = ['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'];

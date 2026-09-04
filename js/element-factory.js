@@ -7,6 +7,7 @@ const ElementFactory = {
   // 1. Text Elements
   createTitle(custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'text',
       textType: 'title',
       x: custom.x || 80,
@@ -35,6 +36,7 @@ const ElementFactory = {
 
   createSubtitle(custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'text',
       textType: 'subtitle',
       x: custom.x || 80,
@@ -63,6 +65,7 @@ const ElementFactory = {
 
   createText(custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'text',
       textType: 'body',
       x: custom.x || 80,
@@ -91,13 +94,14 @@ const ElementFactory = {
 
   createBulletList(custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'text',
       textType: 'bullets',
       x: custom.x || 80,
-      y: custom.y || 250,
-      width: custom.width || 580,
-      height: custom.height || 220,
-      content: '<ul><li>First key takeaway or summary point</li><li>Second detailed argument and supporting rationale</li><li>Third strategic objective or conclusion</li></ul>',
+      y: custom.y || 230,
+      width: custom.width || 620,
+      height: custom.height || 260,
+      content: '<ul><li>Strategic priorities and executive summary<ul><li>Key milestone deliverable and schedule</li><li>Performance metrics and KPI alignment</li></ul></li><li>Resource allocation and implementation plan<ul><li>Core project workflow and phases</li><li>Quality assurance & validation</li></ul></li><li>Conclusions and recommended next steps</li></ul>',
       fontFamily: 'Inter',
       fontSize: 20,
       fontWeight: '400',
@@ -136,6 +140,7 @@ const ElementFactory = {
     const dims = defaultDimensions[shapeId] || { width: 200, height: 150 };
 
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'shape',
       shapeId: shapeId,
       x: custom.x || 200,
@@ -159,6 +164,7 @@ const ElementFactory = {
   // 3. Image Elements
   createImage(src, custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'image',
       src: src,
       x: custom.x || 150,
@@ -184,6 +190,7 @@ const ElementFactory = {
   // 4. Icon Elements (FontAwesome)
   createIcon(iconClass = 'fa-lightbulb', custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'icon',
       iconClass: iconClass.startsWith('fa-') ? `fa-solid ${iconClass}` : iconClass,
       x: custom.x || 200,
@@ -216,6 +223,7 @@ const ElementFactory = {
     }
 
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'table',
       rows: rows,
       cols: cols,
@@ -244,6 +252,7 @@ const ElementFactory = {
   // 6. Chart Elements
   createChart(chartType = 'bar', custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'chart',
       chartType: chartType, // 'bar', 'line', 'pie', 'doughnut'
       x: custom.x || 120,
@@ -279,6 +288,7 @@ const ElementFactory = {
   // 7. Line Elements
   createLine(custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'line',
       x: custom.x || 100,
       y: custom.y || 250,
@@ -294,6 +304,7 @@ const ElementFactory = {
   // 8. Self-Contained HTML Elements
   createHtmlElement(htmlContent = '', custom = {}) {
     return {
+      ...(custom.id ? { id: custom.id } : {}),
       type: 'html',
       x: custom.x || 80,
       y: custom.y || 80,

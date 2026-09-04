@@ -152,3 +152,62 @@
   gap: 6px;
   border: 1px solid rgba(0, 163, 80, 0.3);
 }
+
+/* Presenter List & Levels Styles */
+.presenter-elements-layer .element-inner ul,
+.presenter-elements-layer .element-inner ol {
+  margin: 0.25em 0;
+  padding-left: 1.4em;
+  box-sizing: border-box;
+  text-align: inherit;
+}
+
+.presenter-elements-layer .element-inner ul {
+  list-style-type: disc;
+}
+
+.presenter-elements-layer .element-inner ol {
+  list-style-type: decimal;
+}
+
+.presenter-elements-layer .element-inner li {
+  margin-bottom: 0.35em;
+  line-height: inherit;
+  list-style-position: outside;
+}
+
+.presenter-elements-layer .element-inner li:last-child {
+  margin-bottom: 0;
+}
+
+.presenter-elements-layer .element-inner ul ul,
+.presenter-elements-layer .element-inner ol ul {
+  list-style-type: circle;
+  margin: 0.2em 0;
+  padding-left: 1.3em;
+}
+
+.presenter-elements-layer .element-inner ol ol,
+.presenter-elements-layer .element-inner ul ol {
+  list-style-type: lower-alpha;
+  margin: 0.2em 0;
+  padding-left: 1.3em;
+}
+
+.presenter-elements-layer .element-inner ul ul ul,
+.presenter-elements-layer .element-inner ol ul ul,
+.presenter-elements-layer .element-inner ul ol ul,
+.presenter-elements-layer .element-inner ol ol ul {
+  list-style-type: square;
+  margin: 0.15em 0;
+  padding-left: 1.3em;
+}
+
+.presenter-elements-layer .element-inner ol ol ol,
+.presenter-elements-layer .element-inner ul ol ol,
+.presenter-elements-layer .element-inner ul ul ol,
+.presenter-elements-layer .element-inner ol ul ol {
+  list-style-type: lower-roman;
+  margin: 0.15em 0;
+  padding-left: 1.3em;
+}

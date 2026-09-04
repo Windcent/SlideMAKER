@@ -52,9 +52,22 @@ class PresentationState {
     return {
       id: this.generateId('slide'),
       background: { ...bg },
-      elements: [], // Clean blank canvas for the user to create freely
-      notes: '',
-      transition: 'fade'
+      elements: options.elements ? [...options.elements] : [], // Clean blank canvas for the user to create freely
+      notes: options.notes || '',
+      transition: options.transition || 'fade',
+      isZoomFlow: !!options.isZoomFlow,
+      zoomFlowData: options.zoomFlowData ? JSON.parse(JSON.stringify(options.zoomFlowData)) : null,
+      isFlowChild: !!options.isFlowChild,
+      parentFlowSlideId: options.parentFlowSlideId || null,
+      flowNodeId: options.flowNodeId || null,
+      flowNodeIndex: options.flowNodeIndex !== undefined ? options.flowNodeIndex : null,
+      flowNodeTitle: options.flowNodeTitle || '',
+      flowNodeSubtitle: options.flowNodeSubtitle || '',
+      flowNodeStatus: options.flowNodeStatus || '',
+      flowNodeColor: options.flowNodeColor || '',
+      flowNodeIcon: options.flowNodeIcon || '',
+      thumbnailType: options.thumbnailType || 'canvas',
+      childSlideIds: options.childSlideIds ? [...options.childSlideIds] : []
     };
   }
 
@@ -81,6 +94,10 @@ class PresentationState {
       this.activeSlideIndex = 0;
     }
     return this.slides[this.activeSlideIndex] || null;
+  }
+
+  getCurrentSlide() {
+    return this.getActiveSlide();
   }
 
   // Get single selected element or null
@@ -147,6 +164,26 @@ class PresentationState {
     }
   }
 
+  // Snapshot a captured pre-action state for Undo (used when drag/interaction begins)
+  savePreActionSnapshot(actionName = 'Edit', preSlidesSnapshot) {
+    if (this.isHistoryLocked || !preSlidesSnapshot) return;
+
+    const snapshot = {
+      actionName,
+      title: this.title,
+      aspectRatio: this.aspectRatio,
+      activeSlideIndex: this.activeSlideIndex,
+      slides: preSlidesSnapshot
+    };
+
+    this.undoStack.push(snapshot);
+    if (this.undoStack.length > this.maxHistory) {
+      this.undoStack.shift();
+    }
+    this.redoStack = []; // Clear redo on new action
+    this.notify('history', { canUndo: this.canUndo(), canRedo: this.canRedo() });
+  }
+
   // Snapshot current state for Undo
   saveHistory(actionName = 'Edit') {
     if (this.isHistoryLocked) return;
@@ -198,6 +235,7 @@ class PresentationState {
 
     this.isHistoryLocked = false;
     this.notify('historyRestore', { action: 'undo' });
+    this.notify('history', { canUndo: this.canUndo(), canRedo: this.canRedo() });
   }
 
   redo() {
@@ -223,6 +261,7 @@ class PresentationState {
 
     this.isHistoryLocked = false;
     this.notify('historyRestore', { action: 'redo' });
+    this.notify('history', { canUndo: this.canUndo(), canRedo: this.canRedo() });
   }
 
   // --- Slide Operations ---
@@ -237,6 +276,78 @@ class PresentationState {
     this.selectedElementIds = [];
     this.notify('slideAdded', { index: targetIndex, slide: newSlide });
     return newSlide;
+  }
+
+  addEmptyZoomFlowSlide(insertAfterIndex = null) {
+    this.saveHistory('Add Empty Flow Slide');
+    const emptyFlowData = {
+      title: 'Flow Diagram',
+      layout: 'linear-horizontal',
+      theme: 'udes-emerald',
+      nodes: []
+    };
+    const newSlide = this.createBlankSlide({
+      background: { type: 'color', value: '#060910' },
+      isZoomFlow: true,
+      zoomFlowData: emptyFlowData,
+      childSlideIds: []
+    });
+    const targetIndex = insertAfterIndex !== null ? insertAfterIndex + 1 : this.activeSlideIndex + 1;
+    this.slides.splice(targetIndex, 0, newSlide);
+    this.activeSlideIndex = targetIndex;
+    this.selectedElementIds = [];
+    this.notify('slideAdded', { index: targetIndex, slide: newSlide });
+    return newSlide;
+  }
+
+  addZoomFlowSlide(flowData, insertAfterIndex = null) {
+    this.saveHistory('Add Zoom Flow Slide');
+    const newSlide = this.createBlankSlide({
+      background: { type: 'color', value: '#060910' },
+      isZoomFlow: true,
+      zoomFlowData: JSON.parse(JSON.stringify(flowData))
+    });
+    const targetIndex = insertAfterIndex !== null ? insertAfterIndex + 1 : this.activeSlideIndex + 1;
+    this.slides.splice(targetIndex, 0, newSlide);
+    this.activeSlideIndex = targetIndex;
+    this.selectedElementIds = [];
+    this.notify('slideAdded', { index: targetIndex, slide: newSlide });
+    return newSlide;
+  }
+
+  addZoomFlowWithChildren(flowData, insertAfterIndex = null) {
+    this.saveHistory('Insert Zoom Flow Presentation');
+    const targetIndex = insertAfterIndex !== null ? insertAfterIndex + 1 : this.activeSlideIndex + 1;
+
+    const mainSlide = this.createBlankSlide({
+      background: { type: 'color', value: '#060910' },
+      isZoomFlow: true,
+      zoomFlowData: JSON.parse(JSON.stringify(flowData)),
+      childSlideIds: []
+    });
+
+    this.slides.splice(targetIndex, 0, mainSlide);
+
+    // Generate regular child slides for each node
+    const nodes = flowData.nodes || [];
+    if (window.zoomFlowEngine && nodes.length > 0) {
+      nodes.forEach((node, i) => {
+        const child = window.zoomFlowEngine.generateChildSlide(
+          node,
+          mainSlide.id,
+          i,
+          nodes.length,
+          flowData.theme || 'udes-emerald'
+        );
+        mainSlide.childSlideIds.push(child.id);
+        this.slides.splice(targetIndex + 1 + i, 0, child);
+      });
+    }
+
+    this.activeSlideIndex = targetIndex;
+    this.selectedElementIds = [];
+    this.notify('slideAdded', { index: targetIndex, slide: mainSlide });
+    return mainSlide;
   }
 
   duplicateSlide(index = null) {

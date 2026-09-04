@@ -19,8 +19,15 @@ class SlideManager {
 
     window.state.subscribe((type) => {
       if (['slideChange', 'slideAdded', 'slideDuplicated', 'slideDeleted', 'slideReordered', 'backgroundChanged', 'presentationLoaded', 'historyRestore'].includes(type)) {
-        this.renderThumbnails();
-        this.updateNotesContent();
+        if (type === 'historyRestore') {
+          requestAnimationFrame(() => {
+            this.renderThumbnails();
+            this.updateNotesContent();
+          });
+        } else {
+          this.renderThumbnails();
+          this.updateNotesContent();
+        }
       }
     });
   }
@@ -44,42 +51,96 @@ class SlideManager {
       numBadge.className = 'thumb-number';
       numBadge.textContent = idx + 1;
 
-      // Miniature Canvas Preview container
-      const dims = window.canvasEngine ? window.canvasEngine.getSlideDimensions() : { width: 1280, height: 720 };
-      const previewWrap = document.createElement('div');
-      previewWrap.className = 'thumb-preview-wrap';
-      previewWrap.style.aspectRatio = `${dims.width} / ${dims.height}`;
+      // Check if Text Thumbnail (for regular slides linked to flow nodes)
+      if (slide.thumbnailType === 'text' || slide.isFlowChild) {
+        item.classList.add('is-flow-child');
+        item.style.setProperty('--flow-color', slide.flowNodeColor || 'var(--udes-green)');
 
-      // Background preview
-      const bg = slide.background || { type: 'color', value: '#FFFFFF' };
-      if (bg.type === 'pdf' || bg.type === 'image') {
-        const bgImg = document.createElement('img');
-        bgImg.className = 'thumb-bg-img';
-        bgImg.src = bg.value;
-        bgImg.alt = `Slide ${idx + 1}`;
-        bgImg.loading = 'lazy';
-        previewWrap.appendChild(bgImg);
-      } else if (bg.type === 'gradient') {
-        previewWrap.style.background = bg.value;
+        const textWrap = document.createElement('div');
+        textWrap.className = 'thumb-text-wrap';
+        textWrap.innerHTML = `
+          <div class="thumb-text-header">
+            <span class="thumb-text-tag">${slide.flowNodeStatus || `Stage ${idx + 1}`}</span>
+            <i class="fa-solid ${slide.flowNodeIcon || 'fa-file-lines'}" style="color:${slide.flowNodeColor || 'var(--udes-lime)'};font-size:11px;"></i>
+          </div>
+          <div class="thumb-text-title" title="${slide.flowNodeTitle || slide.title || 'Slide Title'}">${slide.flowNodeTitle || slide.title || 'Slide Title'}</div>
+          <div class="thumb-text-sub">${slide.flowNodeSubtitle || ''}</div>
+        `;
+        item.appendChild(numBadge);
+        item.appendChild(textWrap);
       } else {
-        previewWrap.style.backgroundColor = bg.value || '#FFFFFF';
-      }
+        // Miniature Canvas Preview container
+        const dims = window.canvasEngine ? window.canvasEngine.getSlideDimensions() : { width: 1280, height: 720 };
+        const previewWrap = document.createElement('div');
+        previewWrap.className = 'thumb-preview-wrap';
+        previewWrap.style.aspectRatio = `${dims.width} / ${dims.height}`;
 
-      // Element counts / miniature indicators
-      if (slide.elements && slide.elements.length > 0) {
-        const dotsOverlay = document.createElement('div');
-        dotsOverlay.className = 'thumb-elements-overlay';
-        const scale = 136 / dims.width;
-        slide.elements.forEach(el => {
-          const dot = document.createElement('div');
-          dot.className = `thumb-el-indicator thumb-el-${el.type}`;
-          dot.style.left = `${el.x * scale}px`;
-          dot.style.top = `${el.y * scale}px`;
-          dot.style.width = `${Math.max(3, el.width * scale)}px`;
-          dot.style.height = `${Math.max(2, el.height * scale)}px`;
-          dotsOverlay.appendChild(dot);
-        });
-        previewWrap.appendChild(dotsOverlay);
+        // Background & Flow preview
+        if (slide.isZoomFlow) {
+          const themeKey = slide.zoomFlowData?.theme || 'udes-emerald';
+          const theme = window.zoomFlowEngine ? window.zoomFlowEngine.THEMES[themeKey] : null;
+          previewWrap.style.background = theme ? theme.background : '#060910';
+
+          // Zoom Flow Badge
+          const badge = document.createElement('div');
+          badge.className = 'thumb-zoom-flow-badge';
+          badge.innerHTML = '<i class="fa-solid fa-wand-magic-sparkles"></i> Flow';
+          previewWrap.appendChild(badge);
+
+          // Mini Node preview dots
+          if (slide.zoomFlowData?.nodes) {
+            const miniNodes = document.createElement('div');
+            miniNodes.className = 'thumb-elements-overlay';
+            const nodeCount = slide.zoomFlowData.nodes.length;
+            const miniStep = 100 / Math.max(nodeCount - 1, 1);
+            slide.zoomFlowData.nodes.forEach((n, i) => {
+              const dot = document.createElement('div');
+              dot.style.position = 'absolute';
+              dot.style.left = `${16 + i * miniStep}px`;
+              dot.style.top = `${32 + (i % 2 === 1 ? 6 : -6)}px`;
+              dot.style.width = '6px';
+              dot.style.height = '6px';
+              dot.style.borderRadius = '50%';
+              dot.style.background = n.color || '#00A350';
+              dot.style.boxShadow = `0 0 4px ${n.color || '#00A350'}`;
+              miniNodes.appendChild(dot);
+            });
+            previewWrap.appendChild(miniNodes);
+          }
+        } else {
+          const bg = slide.background || { type: 'color', value: '#FFFFFF' };
+          if (bg.type === 'pdf' || bg.type === 'image') {
+            const bgImg = document.createElement('img');
+            bgImg.className = 'thumb-bg-img';
+            bgImg.src = bg.value;
+            bgImg.alt = `Slide ${idx + 1}`;
+            bgImg.loading = 'lazy';
+            previewWrap.appendChild(bgImg);
+          } else if (bg.type === 'gradient') {
+            previewWrap.style.background = bg.value;
+          } else {
+            previewWrap.style.backgroundColor = bg.value || '#FFFFFF';
+          }
+
+          // Element counts / miniature indicators
+          if (slide.elements && slide.elements.length > 0) {
+            const dotsOverlay = document.createElement('div');
+            dotsOverlay.className = 'thumb-elements-overlay';
+            const scale = 136 / dims.width;
+            slide.elements.forEach(el => {
+              const dot = document.createElement('div');
+              dot.className = `thumb-el-indicator thumb-el-${el.type}`;
+              dot.style.left = `${el.x * scale}px`;
+              dot.style.top = `${el.y * scale}px`;
+              dot.style.width = `${Math.max(3, el.width * scale)}px`;
+              dot.style.height = `${Math.max(2, el.height * scale)}px`;
+              dotsOverlay.appendChild(dot);
+            });
+            previewWrap.appendChild(dotsOverlay);
+          }
+        }
+        item.appendChild(numBadge);
+        item.appendChild(previewWrap);
       }
 
       // Hover Actions overlay (Duplicate, Delete)
@@ -108,18 +169,27 @@ class SlideManager {
       if (slides.length > 1) {
         actionsWrap.appendChild(delBtn);
       }
+      item.appendChild(actionsWrap);
 
       // Click to select
       item.addEventListener('click', () => {
+        try {
+          const currentSlide = state.getActiveSlide ? state.getActiveSlide() : state.slides[state.activeSlideIndex];
+          const targetSlide = slides[idx];
+          if (currentSlide && currentSlide.isFlowChild && targetSlide && targetSlide.isZoomFlow && (currentSlide.parentFlowSlideId === targetSlide.id || !currentSlide.parentFlowSlideId)) {
+            if (window.canvasEngine) {
+              window.canvasEngine.returningFromNodeIndex = currentSlide.flowNodeIndex !== undefined ? currentSlide.flowNodeIndex : 0;
+            }
+          }
+        } catch (err) {
+          console.warn('Error in thumbnail click handler:', err);
+        }
         state.setActiveSlideIndex(idx);
       });
 
       // Drag and Drop Events for Reordering
       this.attachDragEvents(item, idx);
 
-      item.appendChild(numBadge);
-      item.appendChild(previewWrap);
-      item.appendChild(actionsWrap);
       this.stripContainer.appendChild(item);
     });
 
@@ -229,6 +299,16 @@ class SlideManager {
         </div>
       </div>
 
+      <!-- Zoom Flow Interactive Slide Option -->
+      <div class="new-slide-option-card" data-type="zoom-flow" title="Interactive Zoom-In Flow Slide">
+        <div class="new-slide-option-thumb is-blank-thumb" style="background: radial-gradient(circle at center, #0a1f18 0%, #06110d 100%); color: #7FC23F; border: 1.5px solid var(--udes-green); box-shadow: 0 0 14px rgba(0,163,80,0.3);">
+          <div class="blank-slide-preview">
+            <i class="fa-solid fa-wand-magic-sparkles" style="font-size:24px;color:var(--udes-lime);"></i>
+            <span style="color:var(--udes-lime);font-weight:700;font-size:12px;">Zoom Flow</span>
+          </div>
+        </div>
+      </div>
+
       <!-- 6 Official 16:9 Template Options -->
       ${CONFIG.pdfBackgrounds.map(bg => `
         <div class="new-slide-option-card" data-type="template" data-id="${bg.id}" data-page="${bg.pageNumber}" data-image="${bg.image}">
@@ -256,6 +336,12 @@ class SlideManager {
               htmlModal.classList.add('is-open');
             }
           }
+          return;
+        }
+
+        if (type === 'zoom-flow') {
+          if (modal) modal.classList.remove('is-open');
+          window.state.addEmptyZoomFlowSlide();
           return;
         }
 

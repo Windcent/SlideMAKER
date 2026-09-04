@@ -19,6 +19,7 @@
   <link rel="stylesheet" href="css/slide-canvas.css">
   <link rel="stylesheet" href="css/toolbars.css">
   <link rel="stylesheet" href="css/presenter.css">
+  <link rel="stylesheet" href="css/zoom-flow.css">
   
   <!-- CDN Libraries: html2canvas, jsPDF, JSZip, Chart.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -101,67 +102,108 @@
 
     <div class="ribbon-divider"></div>
 
-    <!-- Text Inserters -->
-    <div class="ribbon-group">
-      <button id="btn-insert-title" class="ribbon-btn" title="Insert Title Heading"><i class="fa-solid fa-heading"></i> Title</button>
-      <button id="btn-insert-subtitle" class="ribbon-btn" title="Insert Subtitle"><i class="fa-solid fa-font"></i> Subtitle</button>
-      <button id="btn-insert-text" class="ribbon-btn" title="Insert Text Box"><i class="fa-solid fa-paragraph"></i> Text</button>
-      <button id="btn-insert-bullets" class="ribbon-btn" title="Insert Bulleted List"><i class="fa-solid fa-list-ul"></i> List</button>
-    </div>
-
-    <div class="ribbon-divider"></div>
-
-    <!-- Shapes & Visuals -->
-    <div class="ribbon-group">
-      <!-- Shape Dropdown -->
-      <div class="dropdown-wrap">
-        <button id="btn-insert-shape-dropdown" class="ribbon-btn" title="Choose and Insert Vector Shape">
-          <i class="fa-solid fa-shapes"></i> Shapes <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i>
-        </button>
-        <div class="dropdown-menu" id="shape-picker-menu"></div>
+    <!-- Regular Slide Inserters (Standard Slide Mode) -->
+    <div id="ribbon-slide-tools" class="ribbon-mode-group">
+      <!-- Text Inserters -->
+      <div class="ribbon-group">
+        <button id="btn-insert-title" class="ribbon-btn" title="Insert Title Heading"><i class="fa-solid fa-heading"></i> Title</button>
+        <button id="btn-insert-subtitle" class="ribbon-btn" title="Insert Subtitle"><i class="fa-solid fa-font"></i> Subtitle</button>
+        <button id="btn-insert-text" class="ribbon-btn" title="Insert Text Box"><i class="fa-solid fa-paragraph"></i> Text</button>
+        <button id="btn-insert-bullets" class="ribbon-btn" title="Insert Bulleted List"><i class="fa-solid fa-list-ul"></i> List</button>
       </div>
 
-      <!-- Image Upload -->
-      <input type="file" id="image-upload-input" accept="image/*" style="display:none;">
-      <button id="btn-insert-image" class="ribbon-btn" title="Upload and Insert Image">
-        <i class="fa-solid fa-image"></i> Image
-      </button>
+      <div class="ribbon-divider"></div>
 
-      <!-- UdeS Logos Dropdown -->
-      <div class="dropdown-wrap">
-        <button class="ribbon-btn" onclick="document.getElementById('logo-menu').classList.toggle('is-open')" title="Insert Official UdeS Logo">
-          <i class="fa-solid fa-shield-halved"></i> UdeS Logos <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i>
-        </button>
-        <div class="dropdown-menu" id="logo-menu" style="min-width: 140px;">
-          <button class="dropdown-item" id="btn-insert-logo-dark" style="justify-content: center; padding: 8px 12px;" title="Official UdeS Logo (Full)">
-            <img src="assets/logo_uds_b.png" height="28" alt="Logo UdeS">
+      <!-- Shapes & Visuals -->
+      <div class="ribbon-group">
+        <!-- Shape Dropdown -->
+        <div class="dropdown-wrap">
+          <button id="btn-insert-shape-dropdown" class="ribbon-btn" title="Choose and Insert Vector Shape">
+            <i class="fa-solid fa-shapes"></i> Shapes <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i>
           </button>
-          <button class="dropdown-item" id="btn-insert-logo-light" style="justify-content: center; padding: 8px 12px;" title="Official UdeS Emblem">
-            <img src="assets/logo_uds_a.avif" height="32" alt="Logo UdeS">
-          </button>
+          <div class="dropdown-menu" id="shape-picker-menu"></div>
         </div>
+
+        <!-- Image Upload -->
+        <input type="file" id="image-upload-input" accept="image/*" style="display:none;">
+        <button id="btn-insert-image" class="ribbon-btn" title="Upload and Insert Image">
+          <i class="fa-solid fa-image"></i> Image
+        </button>
+
+        <!-- UdeS Logos Dropdown -->
+        <div class="dropdown-wrap">
+          <button class="ribbon-btn" onclick="document.getElementById('logo-menu').classList.toggle('is-open')" title="Insert Official UdeS Logo">
+            <i class="fa-solid fa-shield-halved"></i> UdeS Logos <i class="fa-solid fa-chevron-down" style="font-size:10px;"></i>
+          </button>
+          <div class="dropdown-menu" id="logo-menu" style="min-width: 140px;">
+            <button class="dropdown-item" id="btn-insert-logo-dark" style="justify-content: center; padding: 8px 12px;" title="Official UdeS Logo (Full)">
+              <img src="assets/logo_uds_b.png" height="28" alt="Logo UdeS">
+            </button>
+            <button class="dropdown-item" id="btn-insert-logo-light" style="justify-content: center; padding: 8px 12px;" title="Official UdeS Emblem">
+              <img src="assets/logo_uds_a.avif" height="32" alt="Logo UdeS">
+            </button>
+          </div>
+        </div>
+
+        <button id="btn-insert-line" class="ribbon-btn" title="Insert Line or Divider">
+          <i class="fa-solid fa-minus"></i> Line
+        </button>
       </div>
 
-      <button id="btn-insert-line" class="ribbon-btn" title="Insert Line or Divider">
-        <i class="fa-solid fa-minus"></i> Line
-      </button>
+      <div class="ribbon-divider"></div>
+
+      <!-- Advanced Objects -->
+      <div class="ribbon-group">
+        <button id="btn-insert-icon" class="ribbon-btn" title="Insert Vector Icon">
+          <i class="fa-solid fa-icons"></i> Icon
+        </button>
+        <button id="btn-insert-table" class="ribbon-btn" title="Insert Data Table">
+          <i class="fa-solid fa-table"></i> Table
+        </button>
+        <button id="btn-insert-chart" class="ribbon-btn" title="Insert Dynamic Chart">
+          <i class="fa-solid fa-chart-pie"></i> Chart
+        </button>
+        <button id="btn-insert-html" class="ribbon-btn" title="Insert Self-Contained HTML Code">
+          <i class="fa-solid fa-code"></i> HTML
+        </button>
+        <button id="btn-insert-zoom-flow" class="ribbon-btn" title="Create Zoom-In Flow Diagram Presentation" style="color:var(--udes-lime);font-weight:600;">
+          <i class="fa-solid fa-wand-magic-sparkles"></i> Zoom Flow
+        </button>
+      </div>
     </div>
 
-    <div class="ribbon-divider"></div>
+    <!-- Flow Diagram Editing Tools (Flow Diagram Slide Mode) -->
+    <div id="ribbon-flow-tools" class="ribbon-mode-group" style="display:none;">
+      <span class="ribbon-flow-badge">
+        <i class="fa-solid fa-diagram-project"></i> Flow Diagram Editing
+      </span>
 
-    <!-- Advanced Objects -->
-    <div class="ribbon-group">
-      <button id="btn-insert-icon" class="ribbon-btn" title="Insert Vector Icon">
-        <i class="fa-solid fa-icons"></i> Icon
+      <button id="btn-flow-add-node" class="btn btn-primary btn-sm" title="Add New Node / Step to Flow">
+        <i class="fa-solid fa-plus"></i> Add Node
       </button>
-      <button id="btn-insert-table" class="ribbon-btn" title="Insert Data Table">
-        <i class="fa-solid fa-table"></i> Table
+
+      <div class="ribbon-divider"></div>
+
+      <button id="btn-flow-snap-grid" class="ribbon-btn active" title="Snap to Grid: ON (Press G to toggle)">
+        <i class="fa-solid fa-border-all"></i> Snap to Grid
       </button>
-      <button id="btn-insert-chart" class="ribbon-btn" title="Insert Dynamic Chart">
-        <i class="fa-solid fa-chart-pie"></i> Chart
-      </button>
-      <button id="btn-insert-html" class="ribbon-btn" title="Insert Self-Contained HTML Code">
-        <i class="fa-solid fa-code"></i> HTML
+
+      <div class="ribbon-divider"></div>
+
+      <div class="ribbon-group">
+        <span class="ribbon-mode-label"><i class="fa-solid fa-palette" style="color:var(--udes-lime);"></i> Theme:</span>
+        <select id="ribbon-flow-theme" class="ctx-select" title="Visual Theme">
+          <option value="udes-emerald">UdeS Emerald</option>
+          <option value="cyber-dark">Tech Dark / Cyber</option>
+          <option value="ocean-teal">Oceanic Teal</option>
+          <option value="glass-light">Clean Glass</option>
+        </select>
+      </div>
+
+      <div class="ribbon-divider"></div>
+
+      <button id="btn-flow-overview" class="ribbon-btn" title="Center Diagram Overview">
+        <i class="fa-solid fa-compress"></i> Overview
       </button>
     </div>
   </nav>
@@ -190,6 +232,14 @@
       <button id="ctx-btn-align-center" class="ctx-btn" title="Align Center"><i class="fa-solid fa-align-center"></i></button>
       <button id="ctx-btn-align-right" class="ctx-btn" title="Align Right"><i class="fa-solid fa-align-right"></i></button>
       <button id="ctx-btn-align-justify" class="ctx-btn" title="Justify"><i class="fa-solid fa-align-justify"></i></button>
+
+      <div class="ribbon-divider"></div>
+
+      <!-- Lists & Levels / Indentation -->
+      <button id="ctx-btn-list-ul" class="ctx-btn" title="Bulleted List"><i class="fa-solid fa-list-ul"></i></button>
+      <button id="ctx-btn-list-ol" class="ctx-btn" title="Numbered List"><i class="fa-solid fa-list-ol"></i></button>
+      <button id="ctx-btn-outdent" class="ctx-btn" title="Decrease Level / Outdent (Shift+Tab)"><i class="fa-solid fa-outdent"></i></button>
+      <button id="ctx-btn-indent" class="ctx-btn" title="Increase Level / Indent (Tab)"><i class="fa-solid fa-indent"></i></button>
 
       <div class="ribbon-divider"></div>
 
@@ -287,13 +337,16 @@
     <aside id="inspector-panel">
       <!-- Tabs Header -->
       <div class="inspector-tabs-header">
-        <button class="inspector-tab-btn is-active" data-tab="background">
+        <button class="inspector-tab-btn" data-tab="flow" id="tab-btn-flow" style="display:none;">
+          <i class="fa-solid fa-diagram-project"></i> Flow
+        </button>
+        <button class="inspector-tab-btn is-active" data-tab="background" id="tab-btn-background">
           <i class="fa-solid fa-image"></i> Background
         </button>
-        <button class="inspector-tab-btn" data-tab="properties">
+        <button class="inspector-tab-btn" data-tab="properties" id="tab-btn-properties">
           <i class="fa-solid fa-sliders"></i> Properties
         </button>
-        <button class="inspector-tab-btn" data-tab="settings">
+        <button class="inspector-tab-btn" data-tab="settings" id="tab-btn-settings">
           <i class="fa-solid fa-gear"></i> Slide
         </button>
         <button id="btn-toggle-inspector" class="inspector-collapse-btn" title="Collapse Inspector Panel">
@@ -302,6 +355,11 @@
       </div>
 
       <div class="inspector-content">
+        <!-- Tab 0: Flow Diagram Editor (Active when on a Zoom Flow Slide) -->
+        <div class="inspector-tab-pane" id="tab-pane-flow">
+          <div id="flow-inspector-content"></div>
+        </div>
+
         <!-- Tab 1: Backgrounds Gallery (PDF Pages 1..6, Colors, Gradients) -->
         <div class="inspector-tab-pane is-active" id="tab-pane-background">
           <div id="background-panel-content"></div>
@@ -483,6 +541,100 @@
   </div>
 </div>
 
+<!-- 6. Zoom Flow Presentation Studio & Generator Modal -->
+<div class="modal-backdrop" id="modal-zoom-flow">
+  <div class="modal-card modal-card-zoom-flow">
+    <!-- Header -->
+    <div class="zf-modal-header">
+      <h3>
+        <i class="fa-solid fa-wand-magic-sparkles" style="color:var(--udes-lime);"></i>
+        <span>Zoom Flow Studio</span>
+        <span class="zf-badge">Interactive Mode</span>
+      </h3>
+      <button class="modal-close-btn" id="btn-close-zoom-flow">&times;</button>
+    </div>
+
+    <!-- Body: 2 Columns (Controls / Generator + Live Interactive Viewport) -->
+    <div class="zf-modal-body">
+      <!-- Left Column: Controls & Presets -->
+      <div class="zf-controls-sidebar">
+        <!-- 1. Curated Template Gallery -->
+        <div>
+          <div class="zf-section-title">
+            <i class="fa-solid fa-shapes" style="color:var(--accent-blue);"></i>
+            <span>Preset Templates</span>
+          </div>
+          <div class="zf-templates-grid" id="zf-templates-container"></div>
+        </div>
+
+        <!-- 3. Visual Theme -->
+        <div>
+          <div class="zf-section-title">
+            <i class="fa-solid fa-palette" style="color:var(--accent-amber);"></i>
+            <span>Visual Theme</span>
+          </div>
+          <div class="zf-options-grid">
+            <div class="zf-select-field" style="grid-column:span 2;">
+              <label>Theme</label>
+              <select id="zf-theme-select" class="zf-select">
+                <option value="udes-emerald" selected>UdeS Emerald</option>
+                <option value="cyber-dark">Tech Dark / Cyber</option>
+                <option value="ocean-teal">Oceanic Teal</option>
+                <option value="glass-light">Clean Glass</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 4. Node List & Quick Editor -->
+        <div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <div class="zf-section-title" style="margin-bottom:0;">
+              <i class="fa-solid fa-list-ol" style="color:var(--udes-lime);"></i>
+              <span>Diagram Nodes (<span id="zf-nodes-count">5</span>)</span>
+            </div>
+            <button id="zf-btn-add-node" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;">
+              <i class="fa-solid fa-plus"></i> Add Node
+            </button>
+          </div>
+          <div class="zf-nodes-list" id="zf-nodes-list"></div>
+        </div>
+      </div>
+
+      <!-- Right Column: Live Interactive Preview Viewport -->
+      <div class="zf-preview-viewport">
+        <!-- Floating Interactive Stepper -->
+        <div class="zf-preview-toolbar">
+          <button id="zf-prev-node-btn" class="zf-toolbar-btn" title="Previous Node (Arrow Left)"><i class="fa-solid fa-chevron-left"></i></button>
+          <span id="zf-current-node-label" class="zf-toolbar-text">Full Diagram Overview</span>
+          <button id="zf-next-node-btn" class="zf-toolbar-btn" title="Next Node (Arrow Right)"><i class="fa-solid fa-chevron-right"></i></button>
+          <div class="ribbon-divider" style="height:14px;background:rgba(255,255,255,0.2);"></div>
+          <button id="zf-overview-btn" class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;" title="Zoom Out to Overview">
+            <i class="fa-solid fa-expand"></i> Overview
+          </button>
+        </div>
+
+        <!-- Live Preview Stage Container -->
+        <div class="zf-preview-canvas-container" id="zf-preview-stage"></div>
+      </div>
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="zf-modal-footer">
+      <div style="font-size:12px;color:var(--text-secondary);">
+        <i class="fa-solid fa-circle-info" style="color:var(--udes-lime);margin-right:6px;"></i>
+        Click any node in the preview to test the zoom-in camera!
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-secondary modal-close-btn">Cancel</button>
+        <button id="zf-btn-insert-slide" class="btn btn-primary">
+          <i class="fa-solid fa-plus"></i> Insert as Interactive Slide
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Application JavaScript Modules -->
 <script src="js/backgrounds-base64.js"></script>
 <script src="js/config.js"></script>
@@ -493,6 +645,7 @@
 <script src="js/background-manager.js"></script>
 <script src="js/slide-manager.js"></script>
 <script src="js/export-engine.js"></script>
+<script src="js/zoom-flow-engine.js"></script>
 <script src="js/presenter-engine.js"></script>
 <script src="js/app.js"></script>
 

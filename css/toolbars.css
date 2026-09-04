@@ -146,6 +146,18 @@
   border-color: var(--border-subtle);
 }
 
+.ribbon-btn.active {
+  background-color: rgba(0, 163, 80, 0.22);
+  border-color: rgba(127, 194, 63, 0.5);
+  color: #ffffff;
+  box-shadow: 0 0 10px rgba(0, 163, 80, 0.25);
+}
+
+.ribbon-btn.active i {
+  color: var(--udes-lime);
+  filter: drop-shadow(0 0 4px rgba(127, 194, 63, 0.5));
+}
+
 /* Dropdown Menu Container */
 .dropdown-wrap {
   position: relative;

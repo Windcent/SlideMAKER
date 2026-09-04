@@ -109,6 +109,67 @@
   overflow: hidden;
 }
 
+/* Lists & Nested Levels (Bullet points, Numbers & Hierarchical Indentation) */
+.element-inner ul,
+.element-inner ol {
+  margin: 0.25em 0;
+  padding-left: 1.4em;
+  box-sizing: border-box;
+  text-align: inherit;
+}
+
+.element-inner ul {
+  list-style-type: disc;
+}
+
+.element-inner ol {
+  list-style-type: decimal;
+}
+
+.element-inner li {
+  margin-bottom: 0.35em;
+  line-height: inherit;
+  list-style-position: outside;
+}
+
+.element-inner li:last-child {
+  margin-bottom: 0;
+}
+
+/* Level 2 Sub-lists */
+.element-inner ul ul,
+.element-inner ol ul {
+  list-style-type: circle;
+  margin: 0.2em 0;
+  padding-left: 1.3em;
+}
+
+.element-inner ol ol,
+.element-inner ul ol {
+  list-style-type: lower-alpha;
+  margin: 0.2em 0;
+  padding-left: 1.3em;
+}
+
+/* Level 3 Sub-lists */
+.element-inner ul ul ul,
+.element-inner ol ul ul,
+.element-inner ul ol ul,
+.element-inner ol ol ul {
+  list-style-type: square;
+  margin: 0.15em 0;
+  padding-left: 1.3em;
+}
+
+.element-inner ol ol ol,
+.element-inner ul ol ol,
+.element-inner ul ul ol,
+.element-inner ol ul ol {
+  list-style-type: lower-roman;
+  margin: 0.15em 0;
+  padding-left: 1.3em;
+}
+
 /* Table Specific Styles */
 .slide-table th, .slide-table td {
   transition: background-color 0.15s ease;

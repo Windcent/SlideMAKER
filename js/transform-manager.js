@@ -10,6 +10,7 @@ class TransformManager {
     this.isResizing = false;
     this.isRotating = false;
     this.isMarquee = false;
+    this.hasMoved = false;
 
     this.dragStartX = 0;
     this.dragStartY = 0;
@@ -60,10 +61,12 @@ class TransformManager {
 
     const coords = this.getSlideCoords(e.clientX, e.clientY);
     this.isDragging = true;
+    this.hasMoved = false;
     this.dragStartX = coords.x;
     this.dragStartY = coords.y;
 
-    // Store initial positions of all selected elements
+    // Store initial positions of all selected elements and capture pre-action state for undo
+    this.preTransformSlidesSnapshot = JSON.parse(JSON.stringify(window.state.slides));
     this.elementStartStates.clear();
     const selectedElements = state.getSelectedElements();
     selectedElements.forEach(el => {
@@ -87,7 +90,9 @@ class TransformManager {
     const selected = state.getSelectedElement();
     if (!selected) return;
 
+    this.preTransformSlidesSnapshot = JSON.parse(JSON.stringify(window.state.slides));
     this.isResizing = true;
+    this.hasMoved = false;
     this.activeHandle = handle;
     const coords = this.getSlideCoords(e.clientX, e.clientY);
     this.dragStartX = coords.x;
@@ -114,7 +119,9 @@ class TransformManager {
     const selected = state.getSelectedElement();
     if (!selected) return;
 
+    this.preTransformSlidesSnapshot = JSON.parse(JSON.stringify(window.state.slides));
     this.isRotating = true;
+    this.hasMoved = false;
     const center = {
       x: selected.x + selected.width / 2,
       y: selected.y + selected.height / 2
@@ -191,6 +198,9 @@ class TransformManager {
   }
 
   handleDragMove(dx, dy) {
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      this.hasMoved = true;
+    }
     const state = window.state;
     const selected = state.getSelectedElements();
     if (selected.length === 0) return;
@@ -228,6 +238,9 @@ class TransformManager {
   }
 
   handleResizeMove(dx, dy, maintainAspect) {
+    if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
+      this.hasMoved = true;
+    }
     const state = window.state;
     const selected = state.getSelectedElement();
     if (!selected) return;
@@ -303,6 +316,10 @@ class TransformManager {
       newRotation = Math.round(newRotation / 15) * 15;
     }
 
+    if (Math.abs(deltaAngle) > 0.5) {
+      this.hasMoved = true;
+    }
+
     selected.rotation = Math.round(newRotation);
     this.canvasEngine.renderActiveSlide(false);
   }
@@ -327,18 +344,18 @@ class TransformManager {
       { pos: slideDims.height, type: 'edge-bottom' }
     ];
 
-    // Other elements on slide
+    // Other elements bounding boxes
     const slide = window.state.getActiveSlide();
     if (slide) {
-      slide.elements.forEach(other => {
-        if (other.id === currentElId) return;
-        snapPointsX.push({ pos: other.x, type: 'el-left' });
-        snapPointsX.push({ pos: other.x + other.width / 2, type: 'el-center-h' });
-        snapPointsX.push({ pos: other.x + other.width, type: 'el-right' });
+      slide.elements.forEach(otherEl => {
+        if (otherEl.id === currentElId) return;
+        snapPointsX.push({ pos: otherEl.x, type: 'el-left' });
+        snapPointsX.push({ pos: otherEl.x + otherEl.width / 2, type: 'el-center-h' });
+        snapPointsX.push({ pos: otherEl.x + otherEl.width, type: 'el-right' });
 
-        snapPointsY.push({ pos: other.y, type: 'el-top' });
-        snapPointsY.push({ pos: other.y + other.height / 2, type: 'el-center-v' });
-        snapPointsY.push({ pos: other.y + other.height, type: 'el-bottom' });
+        snapPointsY.push({ pos: otherEl.y, type: 'el-top' });
+        snapPointsY.push({ pos: otherEl.y + otherEl.height / 2, type: 'el-center-v' });
+        snapPointsY.push({ pos: otherEl.y + otherEl.height, type: 'el-bottom' });
       });
     }
 
@@ -423,17 +440,18 @@ class TransformManager {
   // --- 5. Mouse Up: Commit actions ---
 
   onMouseUp(e) {
-    if (this.isDragging || this.isResizing || this.isRotating) {
-      // Commit action to undo history
-      window.state.saveHistory(
-        this.isDragging ? 'Déplacer élément(s)' :
-        this.isResizing ? 'Redimensionner élément' : 'Pivoter élément'
-      );
+    if (this.hasMoved && (this.isDragging || this.isResizing || this.isRotating) && this.preTransformSlidesSnapshot) {
+      // Commit captured pre-action state to undo history so Ctrl+Z is truly instant
+      const actionName = this.isDragging ? 'Déplacer élément(s)' :
+        this.isResizing ? 'Redimensionner élément' : 'Pivoter élément';
+      window.state.savePreActionSnapshot(actionName, this.preTransformSlidesSnapshot);
+      this.preTransformSlidesSnapshot = null;
     }
 
     this.isDragging = false;
     this.isResizing = false;
     this.isRotating = false;
+    this.hasMoved = false;
     this.activeHandle = null;
     this.elementStartStates.clear();
     this.clearAlignmentGuides();
@@ -444,7 +462,7 @@ class TransformManager {
       if (marqueeEl) marqueeEl.style.display = 'none';
     }
 
-    this.canvasEngine.renderActiveSlide(true);
+    this.canvasEngine.renderSelectionOverlay();
   }
 
   // Marquee visuals
@@ -501,26 +519,20 @@ class TransformManager {
     if (selected.length === 0) return;
 
     const step = e.shiftKey ? 10 : 1;
-    let moved = false;
 
-    if (e.key === 'ArrowLeft') {
-      selected.forEach(el => el.x -= step);
-      moved = true;
-    } else if (e.key === 'ArrowRight') {
-      selected.forEach(el => el.x += step);
-      moved = true;
-    } else if (e.key === 'ArrowUp') {
-      selected.forEach(el => el.y -= step);
-      moved = true;
-    } else if (e.key === 'ArrowDown') {
-      selected.forEach(el => el.y += step);
-      moved = true;
-    }
-
-    if (moved) {
-      e.preventDefault();
-      this.canvasEngine.renderActiveSlide(true);
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowRight' || e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       window.state.saveHistory('Déplacement clavier');
+      if (e.key === 'ArrowLeft') {
+        selected.forEach(el => el.x -= step);
+      } else if (e.key === 'ArrowRight') {
+        selected.forEach(el => el.x += step);
+      } else if (e.key === 'ArrowUp') {
+        selected.forEach(el => el.y -= step);
+      } else if (e.key === 'ArrowDown') {
+        selected.forEach(el => el.y += step);
+      }
+      e.preventDefault();
+      this.canvasEngine.renderActiveSlide(true, true);
     }
   }
 }

@@ -358,6 +358,30 @@ class ExportEngine {
       transform-origin: center center;
     }
 
+    .element-inner {
+      width: 100%;
+      height: 100%;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
+
+    .element-inner ul,
+    .element-inner ol {
+      margin: 0.25em 0;
+      padding-left: 1.4em;
+      box-sizing: border-box;
+      text-align: inherit;
+    }
+
+    .element-inner ul { list-style-type: disc; }
+    .element-inner ol { list-style-type: decimal; }
+    .element-inner li { margin-bottom: 0.35em; line-height: inherit; list-style-position: outside; }
+    .element-inner li:last-child { margin-bottom: 0; }
+    .element-inner ul ul, .element-inner ol ul { list-style-type: circle; margin: 0.2em 0; padding-left: 1.3em; }
+    .element-inner ol ol, .element-inner ul ol { list-style-type: lower-alpha; margin: 0.2em 0; padding-left: 1.3em; }
+    .element-inner ul ul ul, .element-inner ol ul ul, .element-inner ul ol ul, .element-inner ol ol ul { list-style-type: square; margin: 0.15em 0; padding-left: 1.3em; }
+    .element-inner ol ol ol, .element-inner ul ol ol, .element-inner ul ul ol, .element-inner ol ol ol { list-style-type: lower-roman; margin: 0.15em 0; padding-left: 1.3em; }
+
     /* Laser Pointer */
     #laser-pointer {
       position: fixed;
@@ -484,6 +508,72 @@ class ExportEngine {
       line-height: 1.5;
       white-space: pre-wrap;
     }
+
+    /* Zoom Flow Styles for Standalone Export */
+    .zoom-flow-wrapper { position: absolute; top:0; left:0; width:100%; height:100%; overflow:hidden; user-select:none; }
+    .zoom-flow-stage { position: absolute; top:0; left:0; width:100%; height:100%; transform-origin:0 0; transition: transform 0.65s cubic-bezier(0.25, 1, 0.35, 1); z-index:1; }
+    .zoom-flow-svg-layer { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; }
+    .zoom-flow-connector { stroke-dasharray:6; animation: flowLineDash 30s linear infinite; }
+    @keyframes flowLineDash { to { stroke-dashoffset: -1000; } }
+    .zoom-flow-node { position: absolute; transform: translate(-50%, -50%); cursor: pointer; z-index:10; transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease, filter 0.4s ease, opacity 0.4s ease; }
+    .zoom-flow-node-card { width:220px; background: rgba(22, 33, 50, 0.88); backdrop-filter: blur(12px); border: 1.5px solid rgba(255,255,255,0.15); border-radius:14px; padding:16px; box-shadow: 0 10px 25px rgba(0,0,0,0.45); display:flex; flex-direction:column; gap:10px; position:relative; overflow:hidden; transition: all 0.3s ease; }
+    .zoom-flow-node-card::before { content:''; position:absolute; top:0; left:0; width:100%; height:4px; background: var(--node-color, #00A350); }
+    .zoom-flow-node:hover .zoom-flow-node-card { transform: translateY(-4px) scale(1.03); border-color: var(--node-color, #7FC23F); box-shadow: 0 16px 36px rgba(0,0,0,0.55); }
+    .zoom-flow-node-header { display:flex; align-items:center; justify-content:space-between; gap:8px; }
+    .zoom-flow-node-icon { width:38px; height:38px; border-radius:10px; background: rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:center; font-size:16px; color: var(--node-color, #7FC23F); border:1px solid rgba(255,255,255,0.1); }
+    .zoom-flow-node-badge { font-size:10px; font-weight:700; text-transform:uppercase; padding:2px 7px; border-radius:999px; background:rgba(255,255,255,0.1); color:#94a3b8; }
+    .zoom-flow-node-title { font-family:'Outfit',sans-serif; font-size:15px; font-weight:700; color:#ffffff; line-height:1.25; margin:0; }
+    .zoom-flow-node-sub { font-size:11.5px; color:#94a3b8; line-height:1.35; margin:0; }
+    .zoom-flow-node-mini-metric { display:flex; align-items:baseline; gap:6px; background:rgba(0,0,0,0.25); padding:4px 8px; border-radius:6px; border:1px solid rgba(255,255,255,0.05); }
+    .zoom-flow-node-mini-metric .val { font-size:14px; font-weight:700; color:var(--node-color, #7FC23F); }
+    .zoom-flow-node-mini-metric .lbl { font-size:10px; color:#64748b; text-transform:uppercase; }
+    .zoom-flow-stage.is-zoomed-in .zoom-flow-node { opacity:0.35; filter:blur(2px); }
+    .zoom-flow-stage.is-zoomed-in .zoom-flow-node.is-active-node { opacity:1 !important; filter:none !important; z-index:100; }
+    .zoom-flow-node.is-active-node .zoom-flow-node-card { border-color:var(--node-color, #7FC23F); box-shadow: 0 25px 60px rgba(0,0,0,0.8); }
+    .zoom-detail-popout { position:absolute; top:calc(100% + 14px); left:50%; transform:translateX(-50%); width:340px; background:rgba(15, 23, 42, 0.95); backdrop-filter:blur(16px); border:1.5px solid var(--node-color, #7FC23F); border-radius:14px; padding:16px 18px; box-shadow:0 20px 50px rgba(0,0,0,0.75); display:none; flex-direction:column; gap:12px; z-index:105; animation: zoomPopIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
+    @keyframes zoomPopIn { from { opacity:0; transform:translateX(-50%) translateY(12px) scale(0.92); } to { opacity:1; transform:translateX(-50%) translateY(0) scale(1); } }
+    .zoom-flow-node.is-active-node .zoom-detail-popout { display:flex; }
+    .zoom-detail-summary { font-size:13px; color:#e2e8f0; line-height:1.45; }
+    .zoom-detail-bullets { margin:0; padding-left:18px; font-size:12px; color:#cbd5e1; display:flex; flex-direction:column; gap:6px; }
+    .zoom-detail-metric-badge { display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.1); padding:8px 12px; border-radius:8px; }
+    .zoom-detail-metric-val { font-family:'Outfit',sans-serif; font-size:20px; font-weight:800; color:var(--node-color, #7FC23F); }
+    .zoom-detail-metric-lbl { font-size:11px; color:#94a3b8; font-weight:600; text-transform:uppercase; }
+
+    /* Flow Dropdown Menu & Child Slide Breadcrumb */
+    .zf-slide-dropdown-container { position:absolute; top:14px; left:18px; z-index:60; }
+    .zf-slide-dropdown-trigger { background:rgba(15,23,42,0.92); backdrop-filter:blur(12px); border:1px solid rgba(255,255,255,0.18); border-radius:30px; padding:7px 15px; display:flex; align-items:center; gap:10px; color:#ffffff; font-family:inherit; font-size:12.5px; font-weight:600; cursor:pointer; box-shadow:0 6px 20px rgba(0,0,0,0.5); transition:all 0.2s ease; }
+    .zf-slide-dropdown-trigger:hover { border-color:#7fc23f; background:rgba(22,33,50,0.98); }
+    .zf-dropdown-badge { font-size:10px; font-weight:700; padding:2px 7px; border-radius:999px; background:rgba(127,194,63,0.2); color:#7fc23f; border:1px solid rgba(127,194,63,0.35); }
+    .zf-slide-dropdown-menu { position:absolute; top:calc(100% + 8px); left:0; min-width:280px; background:rgba(15,23,42,0.96); backdrop-filter:blur(16px); border:1px solid rgba(255,255,255,0.16); border-radius:12px; padding:6px; box-shadow:0 16px 40px rgba(0,0,0,0.7); display:flex; flex-direction:column; gap:4px; z-index:100; }
+    .zf-slide-dropdown-menu.is-hidden { display:none !important; }
+    .zf-dropdown-header { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:#94a3b8; padding:6px 10px 4px 10px; display:flex; align-items:center; gap:6px; border-bottom:1px solid rgba(255,255,255,0.08); margin-bottom:2px; }
+    .zf-dropdown-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:8px; background:transparent; border:none; cursor:pointer; text-align:left; width:100%; color:#f1f5f9; transition:all 0.15s ease; }
+    .zf-dropdown-item:hover { background:rgba(255,255,255,0.08); color:#ffffff; }
+    .zf-dropdown-item-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .zf-dropdown-item-text { flex:1; min-width:0; }
+    .zf-dropdown-item-title { font-family:'Outfit',sans-serif; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .zf-dropdown-item-sub { font-size:10.5px; color:#94a3b8; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .zf-dropdown-item-arrow { font-size:10px; color:#94a3b8; opacity:0; transition:all 0.15s ease; }
+    .zf-dropdown-item:hover .zf-dropdown-item-arrow { opacity:1; color:#7fc23f; transform:translateX(2px); }
+
+    .zf-child-breadcrumb-banner { position:absolute; top:16px; left:20px; background:rgba(15,23,42,0.88); backdrop-filter:blur(10px); border:1px solid rgba(255,255,255,0.18); border-radius:20px; padding:6px 14px; display:flex; align-items:center; gap:8px; z-index:50; cursor:pointer; transition:all 0.2s ease; box-shadow:0 4px 14px rgba(0,0,0,0.4); color:#ffffff; font-size:12px; font-weight:600; }
+    .zf-child-breadcrumb-banner:hover { background:rgba(22,33,50,0.98); border-color:#7fc23f; transform:translateX(-2px); }
+    .zf-node-jump-btn { margin-top:6px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#ffffff; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; transition:all 0.15s ease; width:100%; }
+    .zf-node-jump-btn:hover { background:var(--node-color, #00A350); border-color:var(--node-color, #00A350); }
+
+    /* Fullscreen Cinematic Zoom & Slide Crossfade */
+    .zoom-flow-stage.is-zooming-fullscreen { transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1) !important; }
+    .zoom-flow-stage.is-zooming-fullscreen .zoom-flow-node:not(.is-active-node) { opacity: 0 !important; transition: opacity 0.35s ease !important; }
+    .zoom-flow-stage.is-zooming-fullscreen .zoom-flow-svg-layer { opacity: 0.08 !important; transition: opacity 0.35s ease !important; }
+    .zoom-flow-stage.has-slide-overlay .zoom-flow-node.is-fullscreen-node .zoom-flow-node-card { opacity: 0 !important; transition: opacity 0.32s cubic-bezier(0.25, 1, 0.5, 1) !important; }
+    .zoom-flow-node.is-fullscreen-node .zoom-flow-node-card { box-shadow: 0 0 100px rgba(0, 0, 0, 0.95), 0 0 50px var(--node-glow, rgba(0, 163, 80, 0.6)); border-color: var(--node-color, #7fc23f); transition: opacity 0.32s cubic-bezier(0.25, 1, 0.5, 1), transform 0.4s ease; }
+    .zoom-flow-stage.is-zooming-out { transition: transform 0.5s cubic-bezier(0.25, 1, 0.4, 1) !important; }
+    .zoom-flow-stage.is-zooming-out .zoom-flow-node { opacity: 1 !important; transition: opacity 0.44s ease-out !important; }
+    .zoom-flow-stage.is-zooming-out .zoom-flow-svg-layer { opacity: 1 !important; transition: opacity 0.44s ease-out !important; }
+    .zf-slide-fade-enter { animation: zfSlideFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+    .zf-slide-fade-exit { animation: zfSlideFadeOut 0.25s cubic-bezier(0.4, 0, 1, 1) forwards; }
+    @keyframes zfSlideFadeIn { 0% { opacity: 0; transform: scale(0.97); filter: blur(4px); } 100% { opacity: 1; transform: scale(1); filter: blur(0px); } }
+    @keyframes zfSlideFadeOut { 0% { opacity: 1; transform: scale(1); filter: blur(0px); } 100% { opacity: 0; transform: scale(0.97); filter: blur(4px); } }
   </style>
 </head>
 <body>
@@ -524,6 +614,7 @@ class ExportEngine {
     let isNotesOpen = false;
     let chartInstances = [];
     let hudTimeout = null;
+    let currentZoomController = null;
 
     const baseWidth = ${dims.width};
     const baseHeight = ${dims.height};
@@ -554,6 +645,27 @@ class ExportEngine {
       currentIndex = index;
       const slide = DATA.slides[index];
 
+      currentZoomController = null;
+      chartInstances.forEach(c => c.destroy());
+      chartInstances = [];
+      elementsLayer.innerHTML = '';
+      elementsLayer.className = 'elements-layer';
+      if (slide.isFlowChild) {
+        elementsLayer.classList.add('zf-slide-fade-enter');
+      }
+
+      // Check if Zoom Flow Slide
+      if (slide.isZoomFlow && slide.zoomFlowData) {
+        bgLayer.style.backgroundImage = 'none';
+        bgLayer.style.background = 'radial-gradient(circle at center, #0a1f18 0%, #06110d 100%)';
+        renderExportedZoomFlow(slide.zoomFlowData);
+        counterEl.textContent = (currentIndex + 1) + ' / ' + DATA.slides.length;
+        progressBar.style.width = (((currentIndex + 1) / DATA.slides.length) * 100) + '%';
+        notesContent.textContent = slide.notes || 'Zoom Flow Diagram - Use Arrow Keys or click nodes to zoom in!';
+        showHud();
+        return;
+      }
+
       // 1. Background
       bgLayer.style.backgroundImage = 'none';
       bgLayer.style.backgroundColor = 'transparent';
@@ -570,9 +682,6 @@ class ExportEngine {
       }
 
       // 2. Elements
-      chartInstances.forEach(c => c.destroy());
-      chartInstances = [];
-      elementsLayer.innerHTML = '';
 
       if (slide.elements) {
         slide.elements.forEach(el => {
@@ -676,11 +785,44 @@ class ExportEngine {
                 chartInstances.push(chart);
               }
             }, 50);
+          } else if (el.type === 'html') {
+            inner.style.overflow = 'hidden';
+            if (el.borderRadius) inner.style.borderRadius = el.borderRadius + 'px';
+            const iframe = document.createElement('iframe');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = 'none';
+            iframe.style.background = el.backgroundColor || 'transparent';
+            iframe.sandbox = 'allow-scripts allow-same-origin';
+            iframe.srcdoc = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{margin:0;padding:0;font-family:sans-serif;background:transparent;}</style></head><body>' + (el.htmlContent || '') + '</body></html>';
+            inner.appendChild(iframe);
           }
 
           dom.appendChild(inner);
           elementsLayer.appendChild(dom);
         });
+      }
+
+      // If this is a child slide linked to a Zoom Flow diagram, render Return Breadcrumb banner
+      if (slide.isFlowChild) {
+        const banner = document.createElement('div');
+        banner.className = 'zf-child-breadcrumb-banner';
+        banner.innerHTML = '<i class="fa-solid fa-arrow-left" style="color:#7fc23f;font-size:12px;"></i> <span>Return to Flow Diagram</span>';
+        banner.title = 'Return to the Main Flow Diagram';
+        banner.addEventListener('click', function(e) {
+          e.stopPropagation();
+          elementsLayer.classList.add('zf-slide-fade-exit');
+          setTimeout(function() {
+            elementsLayer.classList.remove('zf-slide-fade-exit');
+            if (slide.parentFlowSlideId) {
+              const pIdx = DATA.slides.findIndex(s => s.id === slide.parentFlowSlideId);
+              if (pIdx !== -1) { renderSlide(pIdx); return; }
+            }
+            const anyFlowIdx = DATA.slides.findIndex(s => s.isZoomFlow);
+            if (anyFlowIdx !== -1) { renderSlide(anyFlowIdx); }
+          }, 180);
+        });
+        elementsLayer.appendChild(banner);
       }
 
       // HUD & Progress
@@ -725,6 +867,409 @@ class ExportEngine {
       hudTimeout = setTimeout(() => { hud.classList.add('is-hidden'); }, 3000);
     }
 
+    // Zoom Flow renderer for exported presentation
+    function renderExportedZoomFlow(flowData) {
+      const nodes = flowData.nodes || [];
+      const total = nodes.length;
+      const pX = 140, pY = 160, uW = baseWidth - pX * 2;
+      const stepX = total > 1 ? uW / (total - 1) : uW / 2;
+      const positions = [];
+
+      nodes.forEach((n, i) => {
+        const x = (n.x !== undefined) ? n.x : (pX + i * stepX);
+        const y = (n.y !== undefined) ? n.y : ((baseHeight / 2) + (i % 2 === 1 ? 25 : -25));
+        positions.push({ id: n.id, x: x, y: y });
+      });
+
+      const posMap = new Map();
+      positions.forEach(p => posMap.set(p.id, p));
+
+      const flowWrap = document.createElement('div');
+      flowWrap.className = 'zoom-flow-wrapper';
+
+      const zoomStage = document.createElement('div');
+      zoomStage.className = 'zoom-flow-stage';
+      zoomStage.style.width = baseWidth + 'px';
+      zoomStage.style.height = baseHeight + 'px';
+
+      // SVG
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('class', 'zoom-flow-svg-layer');
+      svg.setAttribute('viewBox', '0 0 ' + baseWidth + ' ' + baseHeight);
+
+      const getExportPortCoords = (p, port) => {
+        const halfW = 112, halfH = 65;
+        switch (port) {
+          case 'top': return { x: p.x, y: p.y - halfH, dirX: 0, dirY: -1, port: 'top' };
+          case 'bottom': return { x: p.x, y: p.y + halfH, dirX: 0, dirY: 1, port: 'bottom' };
+          case 'left': return { x: p.x - halfW, y: p.y, dirX: -1, dirY: 0, port: 'left' };
+          case 'right': default: return { x: p.x + halfW, y: p.y, dirX: 1, dirY: 0, port: 'right' };
+        }
+      };
+
+      const generateExportSpline = (pt1, pt2, ptsArr) => {
+        const pts = [
+          { x: pt1.x, y: pt1.y },
+          { x: ptsArr[0].x, y: ptsArr[0].y },
+          { x: ptsArr[1].x, y: ptsArr[1].y },
+          { x: ptsArr[2].x, y: ptsArr[2].y },
+          { x: pt2.x, y: pt2.y }
+        ];
+        const dist01 = Math.hypot(pts[1].x - pts[0].x, pts[1].y - pts[0].y);
+        const dist34 = Math.hypot(pts[4].x - pts[3].x, pts[4].y - pts[3].y);
+        const tan = [];
+        tan[0] = { x: pt1.dirX * Math.max(30, dist01 * 0.75), y: pt1.dirY * Math.max(30, dist01 * 0.75) };
+        tan[4] = { x: -pt2.dirX * Math.max(30, dist34 * 0.75), y: -pt2.dirY * Math.max(30, dist34 * 0.75) };
+        for (let k = 1; k <= 3; k++) {
+          tan[k] = { x: (pts[k + 1].x - pts[k - 1].x) * 0.5, y: (pts[k + 1].y - pts[k - 1].y) * 0.5 };
+        }
+        let res = 'M ' + pts[0].x + ' ' + pts[0].y;
+        for (let k = 0; k < 4; k++) {
+          const cp1x = Math.round(pts[k].x + tan[k].x / 3);
+          const cp1y = Math.round(pts[k].y + tan[k].y / 3);
+          const cp2x = Math.round(pts[k + 1].x - tan[k + 1].x / 3);
+          const cp2y = Math.round(pts[k + 1].y - tan[k + 1].y / 3);
+          res += ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + pts[k + 1].x + ' ' + pts[k + 1].y;
+        }
+        return res;
+      };
+
+      const calculateExportAutoDetour = (pt1, pt2, fromId, toId) => {
+        const dist = Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y);
+        const tension = Math.max(35, Math.min(dist * 0.45, 160));
+        const cp1 = { x: pt1.x + pt1.dirX * tension, y: pt1.y + pt1.dirY * tension };
+        const cp2 = { x: pt2.x + pt2.dirX * tension, y: pt2.y + pt2.dirY * tension };
+
+        const cardHalfW = 114;
+        const cardHalfH = 67;
+
+        const obstacles = [];
+        posMap.forEach((pos, nid) => {
+          obstacles.push({
+            id: nid,
+            isFrom: nid === fromId,
+            isTo: nid === toId,
+            x: pos.x,
+            y: pos.y,
+            xMin: pos.x - cardHalfW,
+            xMax: pos.x + cardHalfW,
+            yMin: pos.y - cardHalfH,
+            yMax: pos.y + cardHalfH,
+            clearLeft: pos.x - (cardHalfW + 36),
+            clearRight: pos.x + (cardHalfW + 36),
+            clearTop: pos.y - (cardHalfH + 34),
+            clearBottom: pos.y + (cardHalfH + 34)
+          });
+        });
+
+        const evalBezier = (t) => {
+          const mt = 1 - t;
+          return {
+            x: (mt ** 3) * pt1.x + 3 * (mt ** 2) * t * cp1.x + 3 * mt * (t ** 2) * cp2.x + (t ** 3) * pt2.x,
+            y: (mt ** 3) * pt1.y + 3 * (mt ** 2) * t * cp1.y + 3 * mt * (t ** 2) * cp2.y + (t ** 3) * pt2.y
+          };
+        };
+
+        const hitObstacles = [];
+        for (let i = 1; i <= 24; i++) {
+          const t = i / 25;
+          const pt = evalBezier(t);
+          for (let j = 0; j < obstacles.length; j++) {
+            const obs = obstacles[j];
+            if (obs.isFrom) {
+              if (t >= 0.14 && pt.x >= obs.xMin && pt.x <= obs.xMax && pt.y >= obs.yMin && pt.y <= obs.yMax) {
+                if (!hitObstacles.includes(obs)) hitObstacles.push(obs);
+              }
+            } else if (obs.isTo) {
+              if (t <= 0.86 && pt.x >= obs.xMin && pt.x <= obs.xMax && pt.y >= obs.yMin && pt.y <= obs.yMax) {
+                if (!hitObstacles.includes(obs)) hitObstacles.push(obs);
+              }
+            } else {
+              if (pt.x >= obs.xMin && pt.x <= obs.xMax && pt.y >= obs.yMin && pt.y <= obs.yMax) {
+                if (!hitObstacles.includes(obs)) hitObstacles.push(obs);
+              }
+            }
+          }
+        }
+
+        if (hitObstacles.length === 0) return null;
+
+        const dx = pt2.x - pt1.x;
+        const dy = pt2.y - pt1.y;
+
+        if (Math.abs(dx) >= Math.abs(dy)) {
+          const avgObsY = hitObstacles.reduce((sum, o) => sum + o.y, 0) / hitObstacles.length;
+          let preferTop = (pt1.port === 'top' || pt2.port === 'top' || (pt1.y + pt2.y) / 2 <= avgObsY);
+          if (pt1.port === 'bottom' || pt2.port === 'bottom') preferTop = false;
+
+          const minTop = Math.min(...hitObstacles.map(o => o.clearTop));
+          const maxBottom = Math.max(...hitObstacles.map(o => o.clearBottom));
+
+          let detourY;
+          if (preferTop && minTop > 65) {
+            detourY = Math.min(minTop, Math.min(pt1.y, pt2.y) - 30);
+            detourY = Math.max(50, detourY);
+          } else {
+            detourY = Math.max(maxBottom, Math.max(pt1.y, pt2.y) + 30);
+            detourY = Math.min(baseHeight - 50, detourY);
+          }
+
+          const stepX1 = pt1.dirX !== 0 ? (pt1.x + pt1.dirX * 55) : (pt1.x + dx * 0.25);
+          const stepX3 = pt2.dirX !== 0 ? (pt2.x + pt2.dirX * 55) : (pt2.x - dx * 0.25);
+
+          return [
+            { x: Math.round(Math.max(45, Math.min(baseWidth - 45, stepX1))), y: Math.round(pt1.y + (detourY - pt1.y) * 0.7) },
+            { x: Math.round(Math.max(45, Math.min(baseWidth - 45, (pt1.x + pt2.x) / 2))), y: Math.round(detourY) },
+            { x: Math.round(Math.max(45, Math.min(baseWidth - 45, stepX3))), y: Math.round(pt2.y + (detourY - pt2.y) * 0.7) }
+          ];
+        } else {
+          const avgObsX = hitObstacles.reduce((sum, o) => sum + o.x, 0) / hitObstacles.length;
+          let preferLeft = (pt1.port === 'left' || pt2.port === 'left' || (pt1.x + pt2.x) / 2 <= avgObsX);
+          if (pt1.port === 'right' || pt2.port === 'right') preferLeft = false;
+
+          const minLeft = Math.min(...hitObstacles.map(o => o.clearLeft));
+          const maxRight = Math.max(...hitObstacles.map(o => o.clearRight));
+
+          let detourX;
+          if (preferLeft && minLeft > 65) {
+            detourX = Math.min(minLeft, Math.min(pt1.x, pt2.x) - 30);
+            detourX = Math.max(50, detourX);
+          } else {
+            detourX = Math.max(maxRight, Math.max(pt1.x, pt2.x) + 30);
+            detourX = Math.min(baseWidth - 50, detourX);
+          }
+
+          const stepY1 = pt1.dirY !== 0 ? (pt1.y + pt1.dirY * 55) : (pt1.y + dy * 0.25);
+          const stepY3 = pt2.dirY !== 0 ? (pt2.y + pt2.dirY * 55) : (pt2.y - dy * 0.25);
+
+          return [
+            { x: Math.round(pt1.x + (detourX - pt1.x) * 0.7), y: Math.round(Math.max(45, Math.min(baseHeight - 45, stepY1))) },
+            { x: Math.round(detourX), y: Math.round(Math.max(45, Math.min(baseHeight - 45, (pt1.y + pt2.y) / 2))) },
+            { x: Math.round(pt2.x + (detourX - pt2.x) * 0.7), y: Math.round(Math.max(45, Math.min(baseHeight - 45, stepY3))) }
+          ];
+        }
+      };
+
+      const activeConns = Array.isArray(flowData.connections) ? flowData.connections : [];
+      if (activeConns.length > 0) {
+        activeConns.forEach(conn => {
+          const p1 = posMap.get(conn.from);
+          const p2 = posMap.get(conn.to);
+          if (!p1 || !p2) return;
+
+          let fPort = conn.fromPort;
+          let tPort = conn.toPort;
+          if (!fPort || !tPort) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            if (Math.abs(dy) > Math.abs(dx) * 1.2) {
+              fPort = fPort || (dy >= 0 ? 'bottom' : 'top');
+              tPort = tPort || (dy >= 0 ? 'top' : 'bottom');
+            } else {
+              fPort = fPort || (dx >= 0 ? 'right' : 'left');
+              tPort = tPort || (dx >= 0 ? 'left' : 'right');
+            }
+          }
+
+          const pt1 = getExportPortCoords(p1, fPort);
+          const pt2 = getExportPortCoords(p2, tPort);
+
+          let d;
+          if (conn.mode === 'manual' && Array.isArray(conn.points) && conn.points.length === 3) {
+            d = generateExportSpline(pt1, pt2, conn.points);
+          } else {
+            const detour = calculateExportAutoDetour(pt1, pt2, conn.from, conn.to);
+            if (detour) {
+              d = generateExportSpline(pt1, pt2, detour);
+            } else if (Array.isArray(conn.points) && conn.points.length === 3) {
+              d = generateExportSpline(pt1, pt2, conn.points);
+            } else {
+              const dist = Math.hypot(pt2.x - pt1.x, pt2.y - pt1.y);
+              const tension = Math.max(35, Math.min(dist * 0.45, 160));
+              const cp1x = pt1.x + pt1.dirX * tension;
+              const cp1y = pt1.y + pt1.dirY * tension;
+              const cp2x = pt2.x + pt2.dirX * tension;
+              const cp2y = pt2.y + pt2.dirY * tension;
+              d = 'M ' + pt1.x + ' ' + pt1.y + ' C ' + cp1x + ' ' + cp1y + ', ' + cp2x + ' ' + cp2y + ', ' + pt2.x + ' ' + pt2.y;
+            }
+          }
+
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', '#00A350');
+          path.setAttribute('stroke-width', '3');
+          path.setAttribute('class', 'zoom-flow-connector');
+          svg.appendChild(path);
+        });
+      } else {
+        for (let i = 1; i < total; i++) {
+          const p1 = positions[i - 1], p2 = positions[i];
+          const x1 = p1.x + 112, y1 = p1.y, x2 = p2.x - 112, y2 = p2.y;
+          const dx = Math.max(50, Math.abs(x2 - x1) * 0.5);
+          const d = 'M ' + x1 + ' ' + y1 + ' C ' + (x1 + dx) + ' ' + y1 + ', ' + (x2 - dx) + ' ' + y2 + ', ' + x2 + ' ' + y2;
+          const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+          path.setAttribute('d', d);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', '#00A350');
+          path.setAttribute('stroke-width', '3');
+          path.setAttribute('class', 'zoom-flow-connector');
+          svg.appendChild(path);
+        }
+      }
+      zoomStage.appendChild(svg);
+
+      const nodeEls = [];
+      nodes.forEach((node, idx) => {
+        const pos = positions[idx];
+        const nEl = document.createElement('div');
+        nEl.className = 'zoom-flow-node';
+        nEl.style.left = pos.x + 'px';
+        nEl.style.top = pos.y + 'px';
+        nEl.style.setProperty('--node-color', node.color || '#00A350');
+
+        nEl.innerHTML = '<div class="zoom-flow-node-card"><div class="zoom-flow-node-header"><span class="zoom-flow-node-badge">' + (node.status || ('Stage ' + (idx + 1))) + '</span></div><h4 class="zoom-flow-node-title">' + node.title + '</h4><p class="zoom-flow-node-sub">' + (node.subtitle || '') + '</p>' + (node.metricVal ? ('<div class="zoom-flow-node-mini-metric"><span class="val">' + node.metricVal + '</span><span class="lbl">' + (node.metricLbl || '') + '</span></div>') : '') + '<div class="zoom-detail-popout">' + (node.metricVal ? ('<div class="zoom-detail-metric-badge"><div><div class="zoom-detail-metric-val">' + node.metricVal + '</div><div class="zoom-detail-metric-lbl">' + (node.metricLbl || 'Key Metric') + '</div></div></div>') : '') + '<p class="zoom-detail-summary">' + (node.summary || '') + '</p>' + (node.bullets && node.bullets.length ? ('<ul class="zoom-detail-bullets">' + node.bullets.map(b => '<li>' + b + '</li>').join('') + '</ul>') : '') + '<button class="zf-node-jump-btn" data-index="' + idx + '" title="Open this node\'s full slide"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide</button></div></div>';
+
+        zoomStage.appendChild(nEl);
+        nodeEls.push(nEl);
+      });
+
+      flowWrap.appendChild(zoomStage);
+
+      function navigateToSlideIndex(nodeIdx) {
+        const targetNode = nodes[nodeIdx];
+        if (!targetNode) return;
+        let targetIdx = DATA.slides.findIndex(s => s.parentFlowSlideId === slide.id && s.flowNodeId === targetNode.id);
+        if (targetIdx === -1) targetIdx = DATA.slides.findIndex(s => s.isFlowChild && s.flowNodeId === targetNode.id);
+        if (targetIdx === -1) targetIdx = DATA.slides.findIndex(s => s.isFlowChild && s.flowNodeIndex === nodeIdx);
+        if (targetIdx !== -1) {
+          currentZoomController.zoomToNodeFullscreen(nodeIdx, function() {
+            renderSlide(targetIdx);
+          });
+        } else {
+          currentZoomController.zoomToNodeFullscreen(nodeIdx);
+        }
+      }
+
+      // On-Slide Dropdown Menu to navigate to any slide from the main flow slide
+      if (nodes.length > 0) {
+        const ddWrap = document.createElement('div');
+        ddWrap.className = 'zf-slide-dropdown-container';
+        ddWrap.innerHTML = '<button class="zf-slide-dropdown-trigger"><i class="fa-solid fa-layer-group" style="color:#7fc23f;"></i> <span class="zf-dropdown-label">Slides (' + nodes.length + ')</span> <span class="zf-dropdown-badge">Regular Content</span> <i class="fa-solid fa-chevron-down" style="font-size:10px;margin-left:2px;"></i></button><div class="zf-slide-dropdown-menu is-hidden"><div class="zf-dropdown-header"><i class="fa-solid fa-diagram-project"></i> <span>Jump to Node Slide</span></div>' + nodes.map((n, i) => '<button class="zf-dropdown-item" data-index="' + i + '"><div class="zf-dropdown-item-dot" style="background:' + (n.color || '#00A350') + ';"></div><div class="zf-dropdown-item-text"><div class="zf-dropdown-item-title">' + n.title + '</div><div class="zf-dropdown-item-sub">' + (n.subtitle || n.status || '') + '</div></div><i class="fa-solid fa-arrow-right zf-dropdown-item-arrow"></i></button>').join('') + '</div>';
+
+        const ddTrig = ddWrap.querySelector('.zf-slide-dropdown-trigger');
+        const ddMenu = ddWrap.querySelector('.zf-slide-dropdown-menu');
+        ddTrig.addEventListener('click', (e) => {
+          e.stopPropagation();
+          ddMenu.classList.toggle('is-hidden');
+        });
+        document.addEventListener('click', () => ddMenu.classList.add('is-hidden'));
+        ddMenu.querySelectorAll('.zf-dropdown-item').forEach(item => {
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            ddMenu.classList.add('is-hidden');
+            const idx = parseInt(item.getAttribute('data-index'), 10);
+            navigateToSlideIndex(idx);
+          });
+        });
+        flowWrap.appendChild(ddWrap);
+      }
+
+      elementsLayer.appendChild(flowWrap);
+
+      currentZoomController = {
+        activeNodeIndex: -1,
+        setSlideOverlayState(hasOverlay) {
+          zoomStage.classList.toggle('has-slide-overlay', !!hasOverlay);
+        },
+        zoomToOverview(onComplete) {
+          this.activeNodeIndex = -1;
+          this.setSlideOverlayState(false);
+          zoomStage.classList.add('is-zooming-out');
+          zoomStage.classList.remove('is-zooming-fullscreen');
+          zoomStage.style.transform = 'translate(0px, 0px) scale(1)';
+          setTimeout(() => {
+            zoomStage.classList.remove('is-zoomed-in', 'is-zooming-out');
+            nodeEls.forEach(el => el.classList.remove('is-active-node', 'is-fullscreen-node'));
+            if (onComplete) onComplete();
+          }, 480);
+        },
+        zoomToNode(i) {
+          if (i < 0 || i >= nodes.length) { this.zoomToOverview(); return; }
+          this.activeNodeIndex = i;
+          const pos = positions[i];
+          const zoomScale = 2.25;
+          const tx = (baseWidth / 2) - (pos.x * zoomScale);
+          const ty = (baseHeight / 2) - ((pos.y - 45) * zoomScale);
+          zoomStage.classList.remove('is-zooming-out');
+          zoomStage.classList.add('is-zoomed-in');
+          nodeEls.forEach((el, idx) => el.classList.toggle('is-active-node', idx === i));
+          zoomStage.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + zoomScale + ')';
+        },
+        zoomToNodeFullscreen(i, onComplete) {
+          if (i < 0 || i >= nodes.length) { this.zoomToOverview(onComplete); return; }
+          this.activeNodeIndex = i;
+          const pos = positions[i];
+          const zoomScale = Math.max(baseWidth / 220, baseHeight / 190, 4.8);
+          const tx = (baseWidth / 2) - (pos.x * zoomScale);
+          const ty = (baseHeight / 2) - (pos.y * zoomScale);
+          this.setSlideOverlayState(false);
+          zoomStage.classList.remove('is-zooming-out');
+          zoomStage.classList.add('is-zoomed-in', 'is-zooming-fullscreen');
+          nodeEls.forEach((el, idx) => {
+            el.classList.toggle('is-active-node', idx === i);
+            el.classList.toggle('is-fullscreen-node', idx === i);
+          });
+          zoomStage.style.transform = 'translate(' + tx + 'px, ' + ty + 'px) scale(' + zoomScale + ')';
+          setTimeout(() => {
+            this.setSlideOverlayState(true);
+          }, 360);
+          if (onComplete) setTimeout(onComplete, 480);
+        },
+        transitionSlideChange(fromIdx, toIdx, onComplete) {
+          if (toIdx === -1) {
+            this.zoomToOverview(onComplete);
+            return;
+          }
+          if (fromIdx === -1 || fromIdx === toIdx) {
+            this.zoomToNodeFullscreen(toIdx, onComplete);
+            return;
+          }
+          this.zoomToOverview(() => {
+            setTimeout(() => {
+              this.zoomToNodeFullscreen(toIdx, onComplete);
+            }, 120);
+          });
+        },
+        stepNext() {
+          if (this.activeNodeIndex < nodes.length - 1) { this.zoomToNode(this.activeNodeIndex + 1); return true; }
+          return false;
+        },
+        stepPrev() {
+          if (this.activeNodeIndex > 0) { this.zoomToNode(this.activeNodeIndex - 1); return true; }
+          else if (this.activeNodeIndex === 0) { this.zoomToOverview(); return true; }
+          return false;
+        }
+      };
+
+      nodeEls.forEach((el, idx) => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          navigateToSlideIndex(idx);
+        });
+
+        el.querySelector('.zf-node-jump-btn')?.addEventListener('click', (e) => {
+          e.stopPropagation();
+          navigateToSlideIndex(idx);
+        });
+      });
+
+      flowWrap.addEventListener('click', (e) => {
+        if (e.target.closest('.zf-slide-dropdown-container') || e.target.closest('.zoom-flow-node')) return;
+        currentZoomController.zoomToOverview();
+      });
+    }
+
     // Event Listeners
     window.addEventListener('resize', fitStage);
     window.addEventListener('mousemove', (e) => {
@@ -736,8 +1281,19 @@ class ExportEngine {
     });
 
     window.addEventListener('keydown', (e) => {
-      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') { e.preventDefault(); nextSlide(); }
-      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); prevSlide(); }
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        if (!e.shiftKey && currentZoomController && currentZoomController.stepNext()) return;
+        nextSlide();
+      }
+      else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        if (!e.shiftKey && currentZoomController && currentZoomController.stepPrev()) return;
+        prevSlide();
+      }
+      else if (e.key === 'o' || e.key === 'O') {
+        if (currentZoomController) { e.preventDefault(); currentZoomController.zoomToOverview(); }
+      }
       else if (e.key === 'Home') { e.preventDefault(); renderSlide(0); }
       else if (e.key === 'End') { e.preventDefault(); renderSlide(DATA.slides.length - 1); }
       else if (e.key === 'l' || e.key === 'L') { toggleLaser(); }

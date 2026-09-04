@@ -18,6 +18,7 @@ class SlideMakerApp {
     window.slideManager = new SlideManager();
     window.exportEngine = new ExportEngine();
     window.presenterEngine = new PresenterEngine();
+    window.zoomFlowEngine = new ZoomFlowEngine();
 
     // Boot UI components
     window.canvasEngine.init();
@@ -27,30 +28,62 @@ class SlideMakerApp {
 
     this.bindHeaderActions();
     this.bindRibbonActions();
+    this.bindFlowEditingEvents();
     this.bindContextualBar();
     this.bindInspectorPanel();
     this.bindModals();
     this.bindKeyboardShortcuts();
     this.bindTitleEditor();
+    this.bindZoomFlowStudioEvents();
 
     // Listen to selection changes to sync contextual toolbar & inspector tab
     window.state.subscribe((type, details) => {
       this.handleStateChange(type, details);
     });
 
+    this.syncEditorMode();
+
     console.log('SlideMAKER initialized successfully!');
   }
 
   handleStateChange(type, details) {
-    if (type === 'selection' || type === 'elementAdded' || type === 'elementsDeleted' || type === 'slideChange') {
+    this.syncEditorMode();
+
+    if (type === 'history' || type === 'historyRestore') {
+      const btnUndo = document.getElementById('btn-undo');
+      const btnRedo = document.getElementById('btn-redo');
+      if (btnUndo) {
+        btnUndo.disabled = !window.state.canUndo();
+        btnUndo.style.opacity = window.state.canUndo() ? '1' : '0.4';
+      }
+      if (btnRedo) {
+        btnRedo.disabled = !window.state.canRedo();
+        btnRedo.style.opacity = window.state.canRedo() ? '1' : '0.4';
+      }
+
+      if (type === 'historyRestore') {
+        const activeSlide = window.state.getActiveSlide();
+        if (activeSlide && activeSlide.isZoomFlow) {
+          this.renderFlowInspector();
+          const themeSel = document.getElementById('ribbon-flow-theme');
+          if (themeSel && activeSlide.zoomFlowData?.theme) {
+            themeSel.value = activeSlide.zoomFlowData.theme;
+          }
+        }
+      }
+    }
+
+    if (type === 'selection' || type === 'elementAdded' || type === 'elementsDeleted' || type === 'slideChange' || type === 'historyRestore') {
       this.syncContextualToolbar();
       this.syncInspectorProperties();
 
       const selected = window.state.getSelectedElement();
-      if (selected && this.activeInspectorTab === 'background') {
-        this.switchInspectorTab('properties');
-      } else if (!selected && this.activeInspectorTab === 'properties') {
-        this.switchInspectorTab('background');
+      if (this.activeInspectorTab !== 'flow') {
+        if (selected && this.activeInspectorTab === 'background') {
+          this.switchInspectorTab('properties');
+        } else if (!selected && this.activeInspectorTab === 'properties') {
+          this.switchInspectorTab('background');
+        }
       }
     }
   }
@@ -151,11 +184,14 @@ class SlideMakerApp {
       window.state.addElement(ElementFactory.createLine());
     });
 
-    // Modals Triggers (Icon, Table, Chart, HTML)
+    // Modals Triggers (Icon, Table, Chart, HTML, Zoom Flow)
     document.getElementById('btn-insert-icon')?.addEventListener('click', () => this.openIconModal());
     document.getElementById('btn-insert-table')?.addEventListener('click', () => this.openTableModal());
     document.getElementById('btn-insert-chart')?.addEventListener('click', () => this.openChartModal());
     document.getElementById('btn-insert-html')?.addEventListener('click', () => this.openHtmlModal());
+    document.getElementById('btn-insert-zoom-flow')?.addEventListener('click', () => {
+      window.state.addEmptyZoomFlowSlide();
+    });
   }
 
   setupShapePicker() {
@@ -255,6 +291,20 @@ class SlideMakerApp {
       });
     });
 
+    // Lists & Levels / Indentation
+    document.getElementById('ctx-btn-list-ul')?.addEventListener('click', () => {
+      this.execTextCommand('insertUnorderedList');
+    });
+    document.getElementById('ctx-btn-list-ol')?.addEventListener('click', () => {
+      this.execTextCommand('insertOrderedList');
+    });
+    document.getElementById('ctx-btn-outdent')?.addEventListener('click', () => {
+      this.execTextCommand('outdent');
+    });
+    document.getElementById('ctx-btn-indent')?.addEventListener('click', () => {
+      this.execTextCommand('indent');
+    });
+
     // Color Pickers
     const textColorInput = document.getElementById('ctx-text-color');
     if (textColorInput) {
@@ -284,6 +334,23 @@ class SlideMakerApp {
     // Duplicate & Delete
     document.getElementById('ctx-btn-duplicate')?.addEventListener('click', () => window.state.duplicateSelectedElements());
     document.getElementById('ctx-btn-delete')?.addEventListener('click', () => window.state.deleteSelectedElements());
+  }
+
+  execTextCommand(cmd) {
+    const el = window.state.getSelectedElement();
+    if (!el || el.type !== 'text') return;
+
+    if (window.canvasEngine && window.canvasEngine.isInlineEditing) {
+      document.execCommand(cmd, false, null);
+      return;
+    }
+
+    if (window.canvasEngine) {
+      window.canvasEngine.startInlineEditing(el.id);
+      setTimeout(() => {
+        document.execCommand(cmd, false, null);
+      }, 15);
+    }
   }
 
   syncContextualToolbar() {
@@ -322,6 +389,11 @@ class SlideMakerApp {
       document.getElementById('ctx-btn-bold')?.classList.toggle('is-active', selected.fontWeight === '700' || selected.fontWeight === 'bold');
       document.getElementById('ctx-btn-italic')?.classList.toggle('is-active', selected.fontStyle === 'italic');
       document.getElementById('ctx-btn-underline')?.classList.toggle('is-active', selected.textDecoration === 'underline');
+
+      const hasUl = selected.content && /<ul\b/i.test(selected.content);
+      const hasOl = selected.content && /<ol\b/i.test(selected.content);
+      document.getElementById('ctx-btn-list-ul')?.classList.toggle('is-active', !!hasUl);
+      document.getElementById('ctx-btn-list-ol')?.classList.toggle('is-active', !!hasOl);
     } else if (selected.type === 'shape' || selected.type === 'icon') {
       if (textGroup) textGroup.style.display = 'none';
       if (shapeGroup) shapeGroup.style.display = 'flex';
@@ -417,6 +489,8 @@ class SlideMakerApp {
 
     if (tabName === 'properties') {
       this.syncInspectorProperties();
+    } else if (tabName === 'flow') {
+      this.renderFlowInspector();
     }
   }
 
@@ -867,6 +941,22 @@ class SlideMakerApp {
           window.state.deleteSelectedElements();
         } else if (e.key === 'Escape') {
           window.state.clearSelection();
+        } else if (e.key === 'PageDown') {
+          e.preventDefault();
+          if (window.state.activeSlideIndex < window.state.slides.length - 1) {
+            window.state.setActiveSlideIndex(window.state.activeSlideIndex + 1);
+          }
+        } else if (e.key === 'PageUp') {
+          e.preventDefault();
+          if (window.state.activeSlideIndex > 0) {
+            window.state.setActiveSlideIndex(window.state.activeSlideIndex - 1);
+          }
+        } else if (e.key === 'g' || e.key === 'G') {
+          const activeSlide = window.state.getActiveSlide();
+          if (activeSlide && activeSlide.isZoomFlow) {
+            e.preventDefault();
+            this.toggleFlowSnapToGrid();
+          }
         }
       }
     });
@@ -882,6 +972,1218 @@ class SlideMakerApp {
     titleInput.addEventListener('input', (e) => {
       window.state.title = e.target.value || 'Untitled Presentation';
       document.title = `${window.state.title} - SlideMAKER`;
+    });
+  }
+
+  // --- Flow Diagram Editor Controller (Direct On-Slide Flow Editing) ---
+
+  bindFlowEditingEvents() {
+    document.getElementById('btn-flow-add-node')?.addEventListener('click', () => {
+      this.addNodeToActiveFlow();
+    });
+
+    document.getElementById('btn-flow-snap-grid')?.addEventListener('click', () => {
+      this.toggleFlowSnapToGrid();
+    });
+
+    document.getElementById('ribbon-flow-theme')?.addEventListener('change', (e) => {
+      this.updateFlowSettings('theme', e.target.value);
+    });
+
+    document.getElementById('btn-flow-overview')?.addEventListener('click', () => {
+      if (window.canvasEngine && window.canvasEngine.currentZoomFlowController) {
+        window.canvasEngine.currentZoomFlowController.zoomToOverview();
+      }
+    });
+  }
+
+  toggleFlowSnapToGrid() {
+    if (!window.zoomFlowEngine) return;
+    window.zoomFlowEngine.snapToGrid = !window.zoomFlowEngine.snapToGrid;
+    this.syncFlowSnapGridUI();
+  }
+
+  syncFlowSnapGridUI() {
+    const isSnap = !!(window.zoomFlowEngine && window.zoomFlowEngine.snapToGrid);
+    const snapBtn = document.getElementById('btn-flow-snap-grid');
+    if (snapBtn) {
+      snapBtn.classList.toggle('active', isSnap);
+      snapBtn.title = isSnap ? 'Snap to Grid: ON (Press G to toggle)' : 'Snap to Grid: OFF (Press G to toggle)';
+    }
+    const flowWrapper = document.querySelector('.zoom-flow-wrapper');
+    if (flowWrapper) {
+      flowWrapper.classList.toggle('is-grid-snapping', isSnap);
+    }
+  }
+
+  syncEditorMode() {
+    const activeSlide = window.state ? window.state.getActiveSlide() : null;
+    const isFlow = !!(activeSlide && activeSlide.isZoomFlow);
+
+    const appContainer = document.getElementById('app-container');
+    if (appContainer) {
+      appContainer.classList.toggle('is-flow-slide-mode', isFlow);
+    }
+
+    const slideTools = document.getElementById('ribbon-slide-tools');
+    const flowTools = document.getElementById('ribbon-flow-tools');
+    if (slideTools) slideTools.style.display = isFlow ? 'none' : 'flex';
+    if (flowTools) flowTools.style.display = isFlow ? 'flex' : 'none';
+
+    const tabBtnFlow = document.getElementById('tab-btn-flow');
+    const tabBtnBg = document.getElementById('tab-btn-background');
+    if (tabBtnFlow) tabBtnFlow.style.display = isFlow ? 'inline-flex' : 'none';
+    if (tabBtnBg) tabBtnBg.style.display = isFlow ? 'none' : 'inline-flex';
+
+    if (isFlow) {
+      const flowData = activeSlide.zoomFlowData || {};
+      const themeSel = document.getElementById('ribbon-flow-theme');
+      if (themeSel && flowData.theme) themeSel.value = flowData.theme;
+
+      this.syncFlowSnapGridUI();
+
+      if (this.activeInspectorTab !== 'flow' && this.activeInspectorTab !== 'settings') {
+        this.switchInspectorTab('flow');
+      } else if (this.activeInspectorTab === 'flow') {
+        this.renderFlowInspector();
+      }
+    } else {
+      if (this.activeInspectorTab === 'flow') {
+        const selected = window.state.getSelectedElement();
+        this.switchInspectorTab(selected ? 'properties' : 'background');
+      }
+    }
+  }
+
+  renderFlowInspector() {
+    const container = document.getElementById('flow-inspector-content');
+    if (!container) return;
+
+    const activeSlide = window.state ? window.state.getActiveSlide() : null;
+    if (!activeSlide || !activeSlide.isZoomFlow) {
+      container.innerHTML = '<p class="empty-hint" style="padding:16px;">Select a Flow Diagram slide to edit.</p>';
+      return;
+    }
+
+    const flowData = activeSlide.zoomFlowData || { title: 'Flow Diagram', layout: 'linear-horizontal', theme: 'udes-emerald', nodes: [] };
+    const nodes = flowData.nodes || [];
+
+    if (this.selectedFlowNodeIndex === undefined || this.selectedFlowNodeIndex === null || this.selectedFlowNodeIndex >= nodes.length) {
+      this.selectedFlowNodeIndex = nodes.length > 0 ? 0 : -1;
+    }
+
+    const selectedNode = this.selectedFlowNodeIndex >= 0 ? nodes[this.selectedFlowNodeIndex] : null;
+
+    let html = `
+      <div class="panel-section">
+        <div class="section-header" style="justify-content:space-between;">
+          <h4><i class="fa-solid fa-diagram-project" style="color:var(--udes-lime);"></i> Diagram Settings</h4>
+          <span class="zf-badge" style="font-size:10px;padding:2px 7px;">${nodes.length} Nodes</span>
+        </div>
+
+        <div class="prop-field">
+          <label>Diagram Title</label>
+          <input type="text" id="flow-prop-title" class="prop-input" value="${this.escapeHtml(flowData.title || 'Flow Diagram')}" placeholder="Diagram Title">
+        </div>
+
+        <div class="prop-field">
+          <label>Visual Theme</label>
+          <select id="flow-prop-theme" class="prop-select">
+            <option value="udes-emerald" ${flowData.theme === 'udes-emerald' ? 'selected' : ''}>UdeS Emerald</option>
+            <option value="cyber-dark" ${flowData.theme === 'cyber-dark' ? 'selected' : ''}>Cyber Dark</option>
+            <option value="ocean-teal" ${flowData.theme === 'ocean-teal' ? 'selected' : ''}>Oceanic</option>
+            <option value="glass-light" ${flowData.theme === 'glass-light' ? 'selected' : ''}>Clean Glass</option>
+          </select>
+        </div>
+
+        <button class="btn btn-primary btn-sm" id="flow-btn-add-node-panel" style="width:100%;margin-top:8px;">
+          <i class="fa-solid fa-plus"></i> Add Node
+        </button>
+      </div>
+
+      <!-- Nodes List Section -->
+      <div class="panel-section">
+        <div class="section-header">
+          <h4><i class="fa-solid fa-list-ol" style="color:var(--udes-lime);"></i> Diagram Nodes</h4>
+        </div>
+
+        ${nodes.length === 0 ? `
+          <div class="zf-empty-hint-card">
+            <i class="fa-solid fa-circle-nodes" style="font-size:24px;color:var(--text-muted);margin-bottom:6px;"></i>
+            <p style="font-size:12px;color:var(--text-secondary);margin:0;">No nodes yet. Click "+ Add Node" to add your first stage.</p>
+          </div>
+        ` : `
+          <div class="zf-inspector-nodes-list">
+            ${nodes.map((node, i) => `
+              <div class="zf-inspector-node-item ${i === this.selectedFlowNodeIndex ? 'is-selected' : ''}" data-index="${i}">
+                <div class="zf-node-item-drag-handle">
+                  <span class="zf-node-badge-mini" style="background:${node.color || '#00A350'};">${i + 1}</span>
+                </div>
+                <div class="zf-node-item-info">
+                  <div class="zf-node-item-title">${this.escapeHtml(node.title || `Stage ${i + 1}`)}</div>
+                  <div class="zf-node-item-sub">${this.escapeHtml(node.subtitle || node.status || '')}</div>
+                </div>
+                <div class="zf-node-item-actions">
+                  <button class="zf-node-action-btn zf-btn-move-up" data-index="${i}" title="Move Up" ${i === 0 ? 'disabled' : ''}>
+                    <i class="fa-solid fa-chevron-up"></i>
+                  </button>
+                  <button class="zf-node-action-btn zf-btn-move-down" data-index="${i}" title="Move Down" ${i === nodes.length - 1 ? 'disabled' : ''}>
+                    <i class="fa-solid fa-chevron-down"></i>
+                  </button>
+                  <button class="zf-node-action-btn zf-btn-delete-node" data-index="${i}" title="Delete Node">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+        `}
+      </div>
+    `;
+
+    if (selectedNode) {
+      html += `
+        <!-- Selected Node Details -->
+        <div class="panel-section">
+          <div class="section-header" style="justify-content:space-between;">
+            <h4><i class="fa-solid fa-sliders" style="color:var(--udes-lime);"></i> Node ${this.selectedFlowNodeIndex + 1} Properties</h4>
+            <span class="zf-badge" style="background:${selectedNode.color || '#00A350'}33;color:${selectedNode.color || '#00A350'};border-color:${selectedNode.color || '#00A350'};">${this.escapeHtml(selectedNode.status || `Stage ${this.selectedFlowNodeIndex + 1}`)}</span>
+          </div>
+
+          <div class="prop-field">
+            <label>Node Title</label>
+            <input type="text" id="flow-node-title" class="prop-input" value="${this.escapeHtml(selectedNode.title || '')}">
+          </div>
+
+          <div class="prop-field">
+            <label>Subtitle / Description</label>
+            <input type="text" id="flow-node-subtitle" class="prop-input" value="${this.escapeHtml(selectedNode.subtitle || '')}">
+          </div>
+
+          <div class="prop-grid-2">
+            <div class="prop-field">
+              <label>Stage / Badge</label>
+              <input type="text" id="flow-node-status" class="prop-input" value="${this.escapeHtml(selectedNode.status || '')}">
+            </div>
+            <div class="prop-field">
+              <label>Color</label>
+              <div style="display:flex;align-items:center;gap:6px;">
+                <input type="color" id="flow-node-color" value="${selectedNode.color || '#00A350'}" style="width:36px;height:30px;border-radius:4px;border:none;cursor:pointer;background:transparent;">
+                <input type="text" id="flow-node-color-text" class="prop-input" value="${selectedNode.color || '#00A350'}" style="flex:1;">
+              </div>
+            </div>
+          </div>
+
+          <div class="prop-grid-2">
+            <div class="prop-field">
+              <label>Metric Value</label>
+              <input type="text" id="flow-node-metric-val" class="prop-input" value="${this.escapeHtml(selectedNode.metricVal || '')}" placeholder="e.g. 98.4%">
+            </div>
+            <div class="prop-field">
+              <label>Metric Label</label>
+              <input type="text" id="flow-node-metric-lbl" class="prop-input" value="${this.escapeHtml(selectedNode.metricLbl || '')}" placeholder="e.g. ACCURACY">
+            </div>
+          </div>
+
+          <div class="prop-field">
+            <label>Icon</label>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <select id="flow-node-icon" class="prop-select" style="flex:1;">
+                <option value="fa-circle-dot" ${selectedNode.icon === 'fa-circle-dot' ? 'selected' : ''}>Circle Dot</option>
+                <option value="fa-rocket" ${selectedNode.icon === 'fa-rocket' ? 'selected' : ''}>Rocket</option>
+                <option value="fa-lightbulb" ${selectedNode.icon === 'fa-lightbulb' ? 'selected' : ''}>Lightbulb</option>
+                <option value="fa-gears" ${selectedNode.icon === 'fa-gears' ? 'selected' : ''}>Gears</option>
+                <option value="fa-chart-line" ${selectedNode.icon === 'fa-chart-line' ? 'selected' : ''}>Chart Line</option>
+                <option value="fa-shield-halved" ${selectedNode.icon === 'fa-shield-halved' ? 'selected' : ''}>Shield</option>
+                <option value="fa-flag" ${selectedNode.icon === 'fa-flag' ? 'selected' : ''}>Flag</option>
+                <option value="fa-check-double" ${selectedNode.icon === 'fa-check-double' ? 'selected' : ''}>Checkmark</option>
+                <option value="fa-bullseye" ${selectedNode.icon === 'fa-bullseye' ? 'selected' : ''}>Bullseye</option>
+                <option value="fa-microchip" ${selectedNode.icon === 'fa-microchip' ? 'selected' : ''}>Microchip</option>
+              </select>
+              <div style="width:32px;height:32px;border-radius:6px;background:rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center;color:${selectedNode.color || '#00A350'};">
+                <i class="fa-solid ${selectedNode.icon || 'fa-circle-dot'}"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="prop-field">
+            <label>Detailed Summary (Zoom Popout & Child Slide)</label>
+            <textarea id="flow-node-summary" class="prop-input" style="height:60px;resize:vertical;">${this.escapeHtml(selectedNode.summary || '')}</textarea>
+          </div>
+
+          <div class="prop-field">
+            <label>Bullet Points (One per line)</label>
+            <textarea id="flow-node-bullets" class="prop-input" style="height:70px;resize:vertical;">${(selectedNode.bullets || []).map(b => this.escapeHtml(b)).join('\n')}</textarea>
+          </div>
+
+          <div style="display:flex;gap:8px;margin-top:12px;">
+            <button class="btn btn-secondary btn-sm" id="flow-btn-open-child" style="flex:1;" title="Open full regular slide content">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide
+            </button>
+            <button class="btn btn-sm" id="flow-btn-delete-current-node" style="background:rgba(239,68,68,0.2);color:#ef4444;border:1px solid rgba(239,68,68,0.4);" title="Delete this node">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+      `;
+    }
+
+    // Connections Section
+    const conns = flowData.connections || [];
+    html += `
+      <div class="panel-section">
+        <div class="section-header" style="justify-content:space-between;">
+          <h4><i class="fa-solid fa-bezier-curve" style="color:var(--udes-lime);"></i> Connections</h4>
+          <span class="zf-badge" style="font-size:10px;padding:2px 7px;">${conns.length} Wires</span>
+        </div>
+
+        <p style="font-size:11.5px;color:var(--text-secondary);margin:0 0 10px 0;line-height:1.4;">
+          <i class="fa-solid fa-circle-info" style="color:var(--udes-lime);margin-right:4px;"></i>
+          Drag from circular ports on node edges to wire stages, or manage links below.
+        </p>
+
+        <div style="display:flex;gap:6px;margin-bottom:10px;">
+          <button class="btn btn-secondary btn-sm" id="flow-btn-autoconnect" style="flex:1;font-size:11px;" title="Connect nodes sequentially 1→2→3...">
+            <i class="fa-solid fa-wand-magic-sparkles"></i> Auto-Connect
+          </button>
+          <button class="btn btn-sm" id="flow-btn-clear-conns" style="font-size:11px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);" title="Remove all connections">
+            <i class="fa-solid fa-trash-can"></i> Clear All
+          </button>
+        </div>
+
+        ${conns.length === 0 ? `
+          <div class="zf-empty-hint-card" style="padding:12px;">
+            <p style="font-size:11.5px;color:var(--text-secondary);margin:0;">No connections yet. Drag between node ports to connect them.</p>
+          </div>
+        ` : `
+          <div class="zf-inspector-conns-list" style="display:flex;flex-direction:column;gap:5px;max-height:160px;overflow-y:auto;">
+            ${conns.map((conn) => {
+              const fromN = nodes.find(n => n.id === conn.from);
+              const toN = nodes.find(n => n.id === conn.to);
+              const fromTitle = fromN ? fromN.title : conn.from;
+              const toTitle = toN ? toN.title : conn.to;
+              const fromColor = fromN ? (fromN.color || '#00A350') : '#00A350';
+              const toColor = toN ? (toN.color || '#00A350') : '#00A350';
+              const fPort = conn.fromPort || 'right';
+              const tPort = conn.toPort || 'left';
+              const isManual = conn.mode === 'manual' || (Array.isArray(conn.points) && conn.points.length === 3);
+
+              return `
+                <div class="zf-inspector-conn-item" style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:6px;font-size:11px;">
+                  <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;">
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${fromColor};flex-shrink:0;"></span>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;font-weight:600;" title="${this.escapeHtml(fromTitle)}">${this.escapeHtml(fromTitle)}</span>
+                    <span style="font-size:9px;padding:1px 4px;background:rgba(255,255,255,0.08);border-radius:3px;color:var(--text-secondary);text-transform:uppercase;">${fPort}</span>
+                    <i class="fa-solid fa-arrow-right" style="font-size:8px;color:var(--udes-lime);flex-shrink:0;"></i>
+                    <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:${toColor};flex-shrink:0;"></span>
+                    <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:70px;font-weight:600;" title="${this.escapeHtml(toTitle)}">${this.escapeHtml(toTitle)}</span>
+                    <span style="font-size:9px;padding:1px 4px;background:rgba(255,255,255,0.08);border-radius:3px;color:var(--text-secondary);text-transform:uppercase;">${tPort}</span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:4px;flex-shrink:0;margin-left:4px;">
+                    <button class="zf-node-action-btn zf-btn-toggle-mode" data-from="${conn.from}" data-to="${conn.to}" data-from-port="${fPort}" data-to-port="${tPort}" title="${isManual ? 'Mode: Manual placing (Click to switch to Auto)' : 'Mode: Auto placing (Click to switch to Manual)'}" style="color:${isManual ? '#38bdf8' : 'var(--text-secondary)'};">
+                      <i class="fa-solid ${isManual ? 'fa-sliders' : 'fa-wand-magic-sparkles'}"></i>
+                    </button>
+                    <button class="zf-node-action-btn zf-btn-delete-conn" data-from="${conn.from}" data-to="${conn.to}" data-from-port="${fPort}" data-to-port="${tPort}" title="Delete connection: ${fPort} → ${tPort}" style="color:var(--accent-rose);">
+                      <i class="fa-solid fa-xmark"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }).join('')}
+          </div>
+        `}
+
+        ${selectedNode && nodes.length > 1 ? `
+          <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--border-subtle);">
+            <label style="font-size:11px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:5px;">Manual Link Node ${this.selectedFlowNodeIndex + 1}:</label>
+            <div style="display:flex;flex-direction:column;gap:5px;">
+              <div style="display:flex;gap:4px;align-items:center;">
+                <span style="font-size:10px;color:var(--text-secondary);width:32px;">From:</span>
+                <select id="flow-quick-connect-from-port" class="prop-select" style="font-size:11px;padding:3px 6px;flex:1;">
+                  <option value="right" selected>Right Port</option>
+                  <option value="bottom">Bottom Port</option>
+                  <option value="top">Top Port</option>
+                  <option value="left">Left Port</option>
+                </select>
+              </div>
+              <div style="display:flex;gap:4px;align-items:center;">
+                <span style="font-size:10px;color:var(--text-secondary);width:32px;">To:</span>
+                <select id="flow-quick-connect-target" class="prop-select" style="flex:1.4;font-size:11px;padding:3px 6px;">
+                  ${nodes.filter(n => n.id !== selectedNode.id).map(n => `
+                    <option value="${n.id}">${this.escapeHtml(n.title)}</option>
+                  `).join('')}
+                </select>
+                <select id="flow-quick-connect-to-port" class="prop-select" style="flex:1;font-size:11px;padding:3px 6px;">
+                  <option value="left" selected>Left Port</option>
+                  <option value="top">Top Port</option>
+                  <option value="bottom">Bottom Port</option>
+                  <option value="right">Right Port</option>
+                </select>
+                <button class="btn btn-primary btn-sm" id="flow-btn-quick-connect" style="font-size:11px;padding:3px 8px;" title="Create connection">
+                  <i class="fa-solid fa-link"></i>
+                </button>
+              </div>
+            </div>
+          </div>
+        ` : ''}
+      </div>
+    `;
+
+    container.innerHTML = html;
+    this.attachFlowInspectorListeners();
+  }
+
+  attachFlowInspectorListeners() {
+    const titleInput = document.getElementById('flow-prop-title');
+    titleInput?.addEventListener('input', (e) => {
+      this.updateFlowSettings('title', e.target.value);
+    });
+
+
+    const themeSelect = document.getElementById('flow-prop-theme');
+    themeSelect?.addEventListener('change', (e) => {
+      this.updateFlowSettings('theme', e.target.value);
+    });
+
+    document.getElementById('flow-btn-add-node-panel')?.addEventListener('click', () => {
+      this.addNodeToActiveFlow();
+    });
+
+    document.getElementById('flow-btn-autoconnect')?.addEventListener('click', () => {
+      this.autoConnectFlowSequence();
+    });
+
+    document.getElementById('flow-btn-clear-conns')?.addEventListener('click', () => {
+      if (confirm('Clear all connections between nodes?')) {
+        this.clearAllFlowConnections();
+      }
+    });
+
+    document.querySelectorAll('.zf-btn-delete-conn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const from = btn.getAttribute('data-from');
+        const to = btn.getAttribute('data-to');
+        const fromPort = btn.getAttribute('data-from-port');
+        const toPort = btn.getAttribute('data-to-port');
+        if (from && to) {
+          this.deleteFlowConnection(from, to, fromPort, toPort);
+        }
+      });
+    });
+
+    document.querySelectorAll('.zf-btn-toggle-mode').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const from = btn.getAttribute('data-from');
+        const to = btn.getAttribute('data-to');
+        const fromPort = btn.getAttribute('data-from-port');
+        const toPort = btn.getAttribute('data-to-port');
+        if (from && to) {
+          this.toggleFlowConnectionMode(from, to, fromPort, toPort);
+        }
+      });
+    });
+
+    document.getElementById('flow-btn-quick-connect')?.addEventListener('click', () => {
+      const activeSlide = window.state.getActiveSlide();
+      if (!activeSlide || !activeSlide.zoomFlowData) return;
+      const nodes = activeSlide.zoomFlowData.nodes || [];
+      const selected = nodes[this.selectedFlowNodeIndex];
+      const targetSelect = document.getElementById('flow-quick-connect-target');
+      const fromPortSelect = document.getElementById('flow-quick-connect-from-port');
+      const toPortSelect = document.getElementById('flow-quick-connect-to-port');
+      if (selected && targetSelect && targetSelect.value) {
+        const fromPort = fromPortSelect ? fromPortSelect.value : 'right';
+        const toPort = toPortSelect ? toPortSelect.value : 'left';
+        this.addFlowConnection(selected.id, targetSelect.value, fromPort, toPort);
+      }
+    });
+
+    document.querySelectorAll('.zf-inspector-node-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('.zf-node-action-btn')) return;
+        const idx = parseInt(item.getAttribute('data-index'), 10);
+        this.selectFlowNode(idx);
+      });
+    });
+
+    document.querySelectorAll('.zf-btn-move-up').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        this.reorderFlowNodes(idx, idx - 1);
+      });
+    });
+
+    document.querySelectorAll('.zf-btn-move-down').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        this.reorderFlowNodes(idx, idx + 1);
+      });
+    });
+
+    document.querySelectorAll('.zf-btn-delete-node').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        this.deleteNodeFromActiveFlow(idx);
+      });
+    });
+
+    const nodeTitleInput = document.getElementById('flow-node-title');
+    nodeTitleInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { title: e.target.value });
+    });
+
+    const nodeSubInput = document.getElementById('flow-node-subtitle');
+    nodeSubInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { subtitle: e.target.value });
+    });
+
+    const nodeStatusInput = document.getElementById('flow-node-status');
+    nodeStatusInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { status: e.target.value });
+    });
+
+    const nodeColorInput = document.getElementById('flow-node-color');
+    const nodeColorText = document.getElementById('flow-node-color-text');
+    nodeColorInput?.addEventListener('input', (e) => {
+      if (nodeColorText) nodeColorText.value = e.target.value;
+      this.updateFlowNode(this.selectedFlowNodeIndex, { color: e.target.value });
+    });
+    nodeColorText?.addEventListener('change', (e) => {
+      if (nodeColorInput) nodeColorInput.value = e.target.value;
+      this.updateFlowNode(this.selectedFlowNodeIndex, { color: e.target.value });
+    });
+
+    const metricValInput = document.getElementById('flow-node-metric-val');
+    metricValInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { metricVal: e.target.value });
+    });
+
+    const metricLblInput = document.getElementById('flow-node-metric-lbl');
+    metricLblInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { metricLbl: e.target.value });
+    });
+
+    const nodeIconSelect = document.getElementById('flow-node-icon');
+    nodeIconSelect?.addEventListener('change', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { icon: e.target.value });
+      this.renderFlowInspector();
+    });
+
+    const nodeSummaryInput = document.getElementById('flow-node-summary');
+    nodeSummaryInput?.addEventListener('input', (e) => {
+      this.updateFlowNode(this.selectedFlowNodeIndex, { summary: e.target.value });
+    });
+
+    const nodeBulletsInput = document.getElementById('flow-node-bullets');
+    nodeBulletsInput?.addEventListener('input', (e) => {
+      const bullets = e.target.value.split('\n').filter(Boolean);
+      this.updateFlowNode(this.selectedFlowNodeIndex, { bullets });
+    });
+
+    document.getElementById('flow-btn-open-child')?.addEventListener('click', () => {
+      const activeSlide = window.state.getActiveSlide();
+      if (!activeSlide || !activeSlide.zoomFlowData) return;
+      const nodes = activeSlide.zoomFlowData.nodes || [];
+      const node = nodes[this.selectedFlowNodeIndex];
+      if (!node) return;
+
+      const childIdx = window.state.slides.findIndex(s =>
+        s.parentFlowSlideId === activeSlide.id && (s.flowNodeIndex === this.selectedFlowNodeIndex || s.flowNodeId === node.id)
+      );
+      if (childIdx !== -1) {
+        window.state.setActiveSlideIndex(childIdx);
+      }
+    });
+
+    document.getElementById('flow-btn-delete-current-node')?.addEventListener('click', () => {
+      this.deleteNodeFromActiveFlow(this.selectedFlowNodeIndex);
+    });
+  }
+
+  addNodeToActiveFlow(nodeData = {}) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow) return;
+
+    // Snapshot before mutation for instant undo
+    window.state.saveHistory('Add Flow Node');
+
+    if (!activeSlide.zoomFlowData) {
+      activeSlide.zoomFlowData = { title: 'Flow Diagram', layout: 'linear-horizontal', theme: 'udes-emerald', nodes: [] };
+    }
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    const idx = nodes.length;
+    const themeKey = activeSlide.zoomFlowData.theme || 'udes-emerald';
+    const theme = window.zoomFlowEngine?.THEMES[themeKey] || window.zoomFlowEngine?.THEMES['udes-emerald'];
+    const accentColors = theme ? theme.accentColors : ['#00A350', '#7FC23F', '#087E5B', '#10B981'];
+    const color = accentColors[idx % accentColors.length];
+
+    const newNode = {
+      id: `node_${Date.now()}_${idx + 1}`,
+      title: nodeData.title || `Stage ${idx + 1}`,
+      subtitle: nodeData.subtitle || 'Implementation focus & key milestones',
+      status: nodeData.status || `Stage ${idx + 1}`,
+      metricVal: nodeData.metricVal || '',
+      metricLbl: nodeData.metricLbl || '',
+      icon: nodeData.icon || 'fa-circle-dot',
+      color: color,
+      summary: nodeData.summary || `Detailed execution plan and strategic milestones for Stage ${idx + 1}.`,
+      bullets: nodeData.bullets || [
+        `Strategic objective for Stage ${idx + 1}`,
+        'Deliverable and execution milestone'
+      ]
+    };
+
+    nodes.push(newNode);
+
+    // Create linked child slide for regular slide content
+    if (window.zoomFlowEngine) {
+      const child = window.zoomFlowEngine.generateChildSlide(
+        newNode,
+        activeSlide.id,
+        idx,
+        nodes.length,
+        themeKey
+      );
+      if (!activeSlide.childSlideIds) activeSlide.childSlideIds = [];
+      activeSlide.childSlideIds.push(child.id);
+
+      const parentIdx = window.state.slides.findIndex(s => s.id === activeSlide.id);
+      let insertIdx = parentIdx + 1;
+      while (insertIdx < window.state.slides.length && window.state.slides[insertIdx].parentFlowSlideId === activeSlide.id) {
+        insertIdx++;
+      }
+      window.state.slides.splice(insertIdx, 0, child);
+    }
+
+    window.canvasEngine.renderActiveSlide();
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+    this.selectedFlowNodeIndex = idx;
+    this.renderFlowInspector();
+  }
+
+  deleteNodeFromActiveFlow(nodeIdx) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    if (nodeIdx < 0 || nodeIdx >= nodes.length) return;
+
+    // Snapshot before deletion for instant undo
+    window.state.saveHistory('Delete Flow Node');
+
+    const removedNode = nodes.splice(nodeIdx, 1)[0];
+
+    // Remove child slide and connections referencing this node
+    if (removedNode) {
+      window.state.slides = window.state.slides.filter(s =>
+        !(s.parentFlowSlideId === activeSlide.id && (s.flowNodeId === removedNode.id || s.flowNodeIndex === nodeIdx))
+      );
+      if (activeSlide.zoomFlowData.connections) {
+        activeSlide.zoomFlowData.connections = activeSlide.zoomFlowData.connections.filter(c =>
+          c.from !== removedNode.id && c.to !== removedNode.id
+        );
+      }
+    }
+
+    // Re-index remaining child slides
+    let childIndex = 0;
+    window.state.slides.forEach(s => {
+      if (s.parentFlowSlideId === activeSlide.id) {
+        s.flowNodeIndex = childIndex;
+        childIndex++;
+      }
+    });
+
+    if (this.selectedFlowNodeIndex >= nodes.length) {
+      this.selectedFlowNodeIndex = nodes.length - 1;
+    }
+
+    window.canvasEngine.renderActiveSlide();
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+    this.renderFlowInspector();
+  }
+
+  addFlowConnection(fromId, toId, fromPort = 'right', toPort = 'left') {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const flowData = activeSlide.zoomFlowData;
+    flowData.connections = flowData.connections || [];
+
+    const exists = flowData.connections.some(c => 
+      c.from === fromId && 
+      c.to === toId && 
+      (c.fromPort || 'right') === fromPort && 
+      (c.toPort || 'left') === toPort
+    );
+    if (exists) return;
+
+    // Snapshot before mutation for instant undo
+    window.state.saveHistory('Add Flow Connection');
+
+    flowData.connections.push({
+      id: `conn_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+      from: fromId,
+      to: toId,
+      fromPort: fromPort,
+      toPort: toPort,
+      type: 'bezier'
+    });
+
+    window.canvasEngine.renderActiveSlide();
+    this.renderFlowInspector();
+  }
+
+  deleteFlowConnection(fromId, toId, fromPort = null, toPort = null) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const flowData = activeSlide.zoomFlowData;
+    if (!flowData.connections) return;
+
+    // Snapshot before deletion for instant undo
+    window.state.saveHistory('Delete Flow Connection');
+
+    flowData.connections = flowData.connections.filter(c => {
+      if (c.from === fromId && c.to === toId) {
+        if (fromPort && toPort) {
+          return !((c.fromPort || 'right') === fromPort && (c.toPort || 'left') === toPort);
+        }
+        return false;
+      }
+      return true;
+    });
+
+    window.canvasEngine.renderActiveSlide();
+    this.renderFlowInspector();
+  }
+
+  toggleFlowConnectionMode(fromId, toId, fromPort = null, toPort = null) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const conns = activeSlide.zoomFlowData.connections || [];
+    const conn = conns.find(c => {
+      if (c.from === fromId && c.to === toId) {
+        if (fromPort && toPort) {
+          return (c.fromPort || 'right') === fromPort && (c.toPort || 'left') === toPort;
+        }
+        return true;
+      }
+      return false;
+    });
+    if (!conn) return;
+
+    const isCurrentlyManual = conn.mode === 'manual' || (Array.isArray(conn.points) && conn.points.length === 3);
+
+    // Snapshot before toggling for instant undo
+    window.state.saveHistory(isCurrentlyManual ? 'Set Connection to Auto Placing' : 'Set Connection to Manual Placing');
+
+    if (isCurrentlyManual) {
+      conn.mode = 'auto';
+      delete conn.points;
+    } else {
+      conn.mode = 'manual';
+    }
+
+    window.canvasEngine.renderActiveSlide();
+    this.renderFlowInspector();
+  }
+
+  resetFlowConnectionPoints(fromId, toId, fromPort = null, toPort = null) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const conns = activeSlide.zoomFlowData.connections || [];
+    const conn = conns.find(c => {
+      if (c.from === fromId && c.to === toId) {
+        if (fromPort && toPort) {
+          return (c.fromPort || 'right') === fromPort && (c.toPort || 'left') === toPort;
+        }
+        return true;
+      }
+      return false;
+    });
+    if (conn && conn.points) {
+      // Snapshot before reset for instant undo
+      window.state.saveHistory('Reset Connection Line');
+      delete conn.points;
+      window.canvasEngine.renderActiveSlide();
+      this.renderFlowInspector();
+    }
+  }
+
+  updateFlowNodePosition(nodeId, x, y, alreadySnapshotted = false) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      if (!alreadySnapshotted) {
+        window.state.saveHistory('Move Flow Node');
+      }
+      node.x = Math.round(x);
+      node.y = Math.round(y);
+    }
+  }
+
+  autoConnectFlowSequence() {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    const newConns = [];
+    for (let i = 1; i < nodes.length; i++) {
+      newConns.push({
+        id: `conn_${Date.now()}_${i}`,
+        from: nodes[i - 1].id,
+        to: nodes[i].id,
+        fromPort: 'right',
+        toPort: 'left',
+        type: 'bezier'
+      });
+    }
+
+    window.state.saveHistory('Auto-Connect Flow Nodes');
+    activeSlide.zoomFlowData.connections = newConns;
+    window.canvasEngine.renderActiveSlide();
+    this.renderFlowInspector();
+  }
+
+  clearAllFlowConnections() {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+
+    window.state.saveHistory('Clear Flow Connections');
+    activeSlide.zoomFlowData.connections = [];
+    window.canvasEngine.renderActiveSlide();
+    this.renderFlowInspector();
+  }
+
+  updateFlowNode(nodeIdx, changes) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    const node = nodes[nodeIdx];
+    if (!node) return;
+
+    window.state.saveHistory('Edit Flow Node');
+    Object.assign(node, changes);
+
+    // Sync linked child slide
+    const childSlide = window.state.slides.find(s => s.parentFlowSlideId === activeSlide.id && (s.flowNodeIndex === nodeIdx || s.flowNodeId === node.id));
+    if (childSlide) {
+      if (changes.title !== undefined) {
+        childSlide.flowNodeTitle = changes.title;
+        const titleEl = childSlide.elements.find(el => el.type === 'text' && (el.textType === 'title' || (el.id && el.id.includes('title'))));
+        if (titleEl) titleEl.content = changes.title;
+      }
+      if (changes.subtitle !== undefined) {
+        childSlide.flowNodeSubtitle = changes.subtitle;
+        const subEl = childSlide.elements.find(el => el.type === 'text' && (el.textType === 'subtitle' || (el.id && el.id.includes('sub'))));
+        if (subEl) subEl.content = changes.subtitle;
+      }
+      if (changes.status !== undefined) childSlide.flowNodeStatus = changes.status;
+      if (changes.color !== undefined) childSlide.flowNodeColor = changes.color;
+      if (changes.icon !== undefined) childSlide.flowNodeIcon = changes.icon;
+      if (changes.summary !== undefined) {
+        const narrEl = childSlide.elements.find(el => el.type === 'text' && (el.id && (el.id.includes('narrative') || el.id.includes('text'))));
+        if (narrEl) narrEl.content = changes.summary;
+      }
+    }
+
+    window.canvasEngine.renderActiveSlide();
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+  }
+
+  selectFlowNode(nodeIdx) {
+    this.selectedFlowNodeIndex = nodeIdx;
+    if (this.activeInspectorTab !== 'flow') {
+      this.switchInspectorTab('flow');
+    } else {
+      this.renderFlowInspector();
+    }
+
+    const canvasNodes = document.querySelectorAll('#slide-elements-layer .zoom-flow-node');
+    canvasNodes.forEach((el, i) => {
+      el.classList.toggle('is-active-node', i === nodeIdx);
+    });
+  }
+
+  reorderFlowNodes(fromIdx, toIdx) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+    const nodes = activeSlide.zoomFlowData.nodes || [];
+    if (fromIdx === toIdx || fromIdx < 0 || toIdx < 0 || fromIdx >= nodes.length || toIdx >= nodes.length) return;
+
+    window.state.saveHistory('Reorder Flow Nodes');
+    const [movedNode] = nodes.splice(fromIdx, 1);
+    nodes.splice(toIdx, 0, movedNode);
+
+    // Re-index linked child slides
+    nodes.forEach((n, idx) => {
+      const child = window.state.slides.find(s => s.parentFlowSlideId === activeSlide.id && s.flowNodeId === n.id);
+      if (child) child.flowNodeIndex = idx;
+    });
+
+    this.selectedFlowNodeIndex = toIdx;
+    window.canvasEngine.renderActiveSlide();
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+    this.renderFlowInspector();
+  }
+
+  updateFlowSettings(field, value) {
+    const activeSlide = window.state.getActiveSlide();
+    if (!activeSlide || !activeSlide.isZoomFlow || !activeSlide.zoomFlowData) return;
+
+    window.state.saveHistory(`Change Flow ${field}`);
+    activeSlide.zoomFlowData[field] = value;
+
+    if (field === 'theme' && window.zoomFlowEngine) {
+      const theme = window.zoomFlowEngine.THEMES[value] || window.zoomFlowEngine.THEMES['udes-emerald'];
+      activeSlide.background = { type: 'color', value: theme.background || '#060910' };
+    }
+
+    window.canvasEngine.renderActiveSlide();
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+    }
+
+    const themeSel = document.getElementById('ribbon-flow-theme');
+    if (themeSel && field === 'theme') themeSel.value = value;
+
+    this.renderFlowInspector();
+  }
+
+  escapeHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
+  // --- 8. Zoom Flow Presentation Studio Controller ---
+
+  openZoomFlowStudio(mode = 'new-slide') {
+    this.zoomFlowStudioMode = mode;
+    const modal = document.getElementById('modal-zoom-flow');
+    if (!modal) return;
+
+    if (mode === 'edit') {
+      const activeSlide = window.state.getActiveSlide();
+      if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
+        this.currentZoomFlowData = JSON.parse(JSON.stringify(activeSlide.zoomFlowData));
+      } else {
+        this.currentZoomFlowData = JSON.parse(JSON.stringify(window.zoomFlowEngine.TEMPLATES[0]));
+      }
+    } else {
+      this.currentZoomFlowData = JSON.parse(JSON.stringify(window.zoomFlowEngine.TEMPLATES[0]));
+    }
+
+    // Set theme dropdown
+    const themeSel = document.getElementById('zf-theme-select');
+    if (themeSel) themeSel.value = this.currentZoomFlowData.theme || 'udes-emerald';
+
+    this.renderZoomFlowTemplates();
+    this.renderZoomFlowNodesList();
+
+    modal.classList.add('is-open');
+
+    // Render preview after modal is open and has geometry
+    requestAnimationFrame(() => {
+      this.renderZoomFlowStudioPreview();
+    });
+    setTimeout(() => {
+      this.renderZoomFlowStudioPreview();
+    }, 100);
+  }
+
+  closeZoomFlowStudio() {
+    const modal = document.getElementById('modal-zoom-flow');
+    if (modal) modal.classList.remove('is-open');
+  }
+
+  renderZoomFlowTemplates() {
+    const container = document.getElementById('zf-templates-container');
+    if (!container || !window.zoomFlowEngine) return;
+
+    container.innerHTML = window.zoomFlowEngine.TEMPLATES.map(tpl => `
+      <div class="zf-template-card ${this.currentZoomFlowData && this.currentZoomFlowData.title === tpl.title ? 'is-active' : ''}" data-tpl-id="${tpl.id}">
+        <div class="card-title">
+          <i class="fa-solid ${tpl.icon}" style="color:var(--udes-lime);"></i>
+          <span>${tpl.name}</span>
+        </div>
+        <div class="card-desc">${tpl.desc}</div>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.zf-template-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const tplId = card.getAttribute('data-tpl-id');
+        const found = window.zoomFlowEngine.TEMPLATES.find(t => t.id === tplId);
+        if (found) {
+          this.currentZoomFlowData = JSON.parse(JSON.stringify(found));
+          const themeSel = document.getElementById('zf-theme-select');
+          if (themeSel) themeSel.value = this.currentZoomFlowData.theme;
+
+          container.querySelectorAll('.zf-template-card').forEach(c => c.classList.remove('is-active'));
+          card.classList.add('is-active');
+
+          this.renderZoomFlowNodesList();
+          this.renderZoomFlowStudioPreview();
+        }
+      });
+    });
+  }
+
+  renderZoomFlowNodesList() {
+    const listEl = document.getElementById('zf-nodes-list');
+    const countEl = document.getElementById('zf-nodes-count');
+    if (!listEl || !this.currentZoomFlowData) return;
+
+    const nodes = this.currentZoomFlowData.nodes || [];
+    if (countEl) countEl.textContent = nodes.length;
+
+    listEl.innerHTML = nodes.map((node, idx) => `
+      <div class="zf-node-item-row" data-index="${idx}">
+        <div class="zf-node-item-info">
+          <div class="zf-node-item-dot" style="background:${node.color || '#00A350'};box-shadow:0 0 6px ${node.color || '#00A350'};"></div>
+          <span class="zf-node-item-name">${node.title}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px;">
+          <button class="btn-icon zf-node-edit-btn" data-index="${idx}" style="width:24px;height:24px;font-size:11px;" title="Edit Node Details">
+            <i class="fa-solid fa-pen"></i>
+          </button>
+          ${nodes.length > 2 ? `
+            <button class="btn-icon zf-node-del-btn" data-index="${idx}" style="width:24px;height:24px;font-size:11px;color:var(--accent-rose);" title="Remove Node">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          ` : ''}
+        </div>
+      </div>
+    `).join('');
+
+    // Clicking row highlights in preview
+    listEl.querySelectorAll('.zf-node-item-row').forEach(row => {
+      row.addEventListener('click', (e) => {
+        if (e.target.closest('.zf-node-edit-btn') || e.target.closest('.zf-node-del-btn')) return;
+        const idx = parseInt(row.getAttribute('data-index'), 10);
+        if (this.previewZoomFlowController) {
+          this.previewZoomFlowController.zoomToNode(idx);
+        }
+      });
+    });
+
+    // Delete node
+    listEl.querySelectorAll('.zf-node-del-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        this.currentZoomFlowData.nodes.splice(idx, 1);
+        this.renderZoomFlowNodesList();
+        this.renderZoomFlowStudioPreview();
+      });
+    });
+
+    // Edit node inline prompt
+    listEl.querySelectorAll('.zf-node-edit-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.getAttribute('data-index'), 10);
+        const node = this.currentZoomFlowData.nodes[idx];
+        const newTitle = prompt('Edit Node Title:', node.title);
+        if (newTitle && newTitle.trim()) {
+          node.title = newTitle.trim();
+          const newSub = prompt('Edit Node Subtitle:', node.subtitle || '');
+          if (newSub !== null) node.subtitle = newSub.trim();
+          this.renderZoomFlowNodesList();
+          this.renderZoomFlowStudioPreview();
+        }
+      });
+    });
+  }
+
+  renderZoomFlowStudioPreview() {
+    const container = document.getElementById('zf-preview-stage');
+    if (!container || !this.currentZoomFlowData || !window.zoomFlowEngine) return;
+
+    container.innerHTML = '';
+    const previewController = window.zoomFlowEngine.createZoomFlowDOM(this.currentZoomFlowData, {
+      isPreview: true,
+      width: 1280,
+      height: 720,
+      onNodeChange: (idx, node) => {
+        const label = document.getElementById('zf-current-node-label');
+        if (label) {
+          if (idx === -1 || !node) {
+            label.textContent = 'Diagram Overview';
+          } else {
+            label.textContent = `${idx + 1}/${this.currentZoomFlowData.nodes.length}: ${node.title}`;
+          }
+        }
+      }
+    });
+
+    const rect = container.getBoundingClientRect();
+    const containerW = rect.width > 50 ? rect.width : (container.clientWidth || 720);
+    const containerH = rect.height > 50 ? rect.height : (container.clientHeight || 520);
+
+    const paddingX = 40;
+    const paddingY = 85;
+    const availW = Math.max(200, containerW - paddingX);
+    const availH = Math.max(150, containerH - paddingY);
+    const scale = Math.min(availW / 1280, availH / 720, 1.0);
+
+    // Centered scaler box matching scaled slide dimensions
+    const previewBox = document.createElement('div');
+    previewBox.className = 'zf-preview-scaler-box';
+    previewBox.style.width = `${Math.round(1280 * scale)}px`;
+    previewBox.style.height = `${Math.round(720 * scale)}px`;
+    previewBox.style.position = 'relative';
+    previewBox.style.overflow = 'hidden';
+    previewBox.style.borderRadius = '12px';
+    previewBox.style.boxShadow = '0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(255, 255, 255, 0.12)';
+    previewBox.style.flexShrink = '0';
+    previewBox.style.margin = 'auto';
+
+    const previewWrap = previewController.wrapper;
+    previewWrap.style.width = '1280px';
+    previewWrap.style.height = '720px';
+    previewWrap.style.position = 'absolute';
+    previewWrap.style.top = '0';
+    previewWrap.style.left = '0';
+    previewWrap.style.transformOrigin = '0 0';
+    previewWrap.style.transform = `scale(${scale})`;
+
+    previewBox.appendChild(previewWrap);
+    container.appendChild(previewBox);
+    this.previewZoomFlowController = previewController;
+
+    const label = document.getElementById('zf-current-node-label');
+    if (label) label.textContent = 'Diagram Overview';
+  }
+
+  bindZoomFlowStudioEvents() {
+    document.getElementById('btn-close-zoom-flow')?.addEventListener('click', () => this.closeZoomFlowStudio());
+
+
+    // Theme select change
+    document.getElementById('zf-theme-select')?.addEventListener('change', (e) => {
+      if (this.currentZoomFlowData) {
+        this.currentZoomFlowData.theme = e.target.value;
+        this.renderZoomFlowStudioPreview();
+      }
+    });
+
+    // Add node button
+    document.getElementById('zf-btn-add-node')?.addEventListener('click', () => {
+      if (!this.currentZoomFlowData) return;
+      const count = (this.currentZoomFlowData.nodes || []).length;
+      if (count >= 8) {
+        alert('Maximum of 8 nodes recommended for optimal presentation readability.');
+        return;
+      }
+      const themeKey = this.currentZoomFlowData.theme || 'udes-emerald';
+      const colors = window.zoomFlowEngine?.THEMES[themeKey]?.accentColors || ['#00A350', '#7FC23F', '#38BDF8'];
+      const color = colors[count % colors.length];
+
+      this.currentZoomFlowData.nodes.push({
+        id: `node_${count + 1}`,
+        title: `Stage ${count + 1}: Strategic Milestone`,
+        subtitle: 'Key Deliverable & Next Phase',
+        icon: 'fa-star',
+        color: color,
+        status: `Stage ${count + 1}`,
+        metricVal: '100%',
+        metricLbl: 'Target Goal',
+        summary: 'Detailed explanation of this milestone objective and accomplishments.',
+        bullets: ['Key outcome and accomplishment', 'Cross-functional coordination and handoff']
+      });
+
+      this.renderZoomFlowNodesList();
+      this.renderZoomFlowStudioPreview();
+    });
+
+    // Preview Stepper buttons
+    document.getElementById('zf-prev-node-btn')?.addEventListener('click', () => {
+      if (this.previewZoomFlowController) this.previewZoomFlowController.stepPrev();
+    });
+
+    document.getElementById('zf-next-node-btn')?.addEventListener('click', () => {
+      if (this.previewZoomFlowController) this.previewZoomFlowController.stepNext();
+    });
+
+    document.getElementById('zf-overview-btn')?.addEventListener('click', () => {
+      if (this.previewZoomFlowController) this.previewZoomFlowController.zoomToOverview();
+    });
+
+    // Insert as Interactive Slide
+    document.getElementById('zf-btn-insert-slide')?.addEventListener('click', () => {
+      if (!this.currentZoomFlowData) return;
+
+      if (this.zoomFlowStudioMode === 'edit') {
+        const slide = window.state.getActiveSlide();
+        if (slide) {
+          window.state.saveHistory('Edit Zoom Flow Slide');
+          slide.isZoomFlow = true;
+          slide.zoomFlowData = JSON.parse(JSON.stringify(this.currentZoomFlowData));
+          this.syncChildSlidesForFlow(slide);
+          window.canvasEngine.renderActiveSlide();
+          window.slideManager.renderThumbnails();
+        }
+      } else {
+        window.state.addZoomFlowWithChildren(this.currentZoomFlowData);
+      }
+
+      this.closeZoomFlowStudio();
+    });
+  }
+
+  syncChildSlidesForFlow(flowSlide) {
+    if (!flowSlide || !flowSlide.zoomFlowData || !window.zoomFlowEngine) return;
+    const nodes = flowSlide.zoomFlowData.nodes || [];
+    const themeKey = flowSlide.zoomFlowData.theme || 'udes-emerald';
+    flowSlide.childSlideIds = flowSlide.childSlideIds || [];
+
+    nodes.forEach((node, i) => {
+      let child = window.state.slides.find(s => s.parentFlowSlideId === flowSlide.id && s.flowNodeId === node.id);
+      if (!child) {
+        child = window.state.slides.find(s => s.id && flowSlide.childSlideIds.includes(s.id) && s.flowNodeIndex === i);
+      }
+
+      if (child) {
+        child.flowNodeId = child.flowNodeId || node.id;
+        child.flowNodeTitle = node.title;
+        child.flowNodeSubtitle = node.subtitle;
+        child.flowNodeColor = node.color;
+        child.flowNodeIcon = node.icon;
+        child.flowNodeStatus = node.status;
+        child.flowNodeIndex = i;
+        child.parentFlowSlideId = flowSlide.id;
+        child.isFlowChild = true;
+        child.thumbnailType = 'text';
+      } else {
+        const newChild = window.zoomFlowEngine.generateChildSlide(node, flowSlide.id, i, nodes.length, themeKey);
+        flowSlide.childSlideIds.push(newChild.id);
+        const pIdx = window.state.slides.indexOf(flowSlide);
+        window.state.slides.splice(pIdx + 1 + i, 0, newChild);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      const modal = document.getElementById('modal-zoom-flow');
+      if (modal && modal.classList.contains('is-open')) {
+        this.renderZoomFlowStudioPreview();
+      }
     });
   }
 }
