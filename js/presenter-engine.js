@@ -16,6 +16,7 @@ class PresenterEngine {
     this.activeFlowSlideId = null;
     this.slideOverlay = null;
     this.currentZoomController = null;
+    this.completedFlowOverviews = new Set();
   }
 
   init() {
@@ -200,19 +201,138 @@ class PresenterEngine {
     this.activeFlowSlideId = null;
     this.slideOverlay = null;
     this.currentZoomController = null;
+    if (this.completedFlowOverviews) this.completedFlowOverviews.clear();
 
     window.state.setActiveSlideIndex(this.currentSlideIndex);
   }
 
+  isDescendantOf(slide, ancestorId) {
+    if (!slide || !ancestorId) return false;
+    let cur = slide;
+    const slides = window.state ? window.state.slides : [];
+    const visited = new Set();
+    while (cur && cur.parentFlowSlideId && !visited.has(cur.id)) {
+      visited.add(cur.id);
+      if (cur.parentFlowSlideId === ancestorId) return true;
+      cur = slides.find(s => s.id === cur.parentFlowSlideId);
+    }
+    return false;
+  }
+
+  getSlideIndexAfterDiagram(diagramSlide) {
+    const slides = window.state ? window.state.slides : [];
+    const diagramIndex = slides.indexOf(diagramSlide);
+    if (diagramIndex === -1) return -1;
+    for (let i = diagramIndex + 1; i < slides.length; i++) {
+      if (!this.isDescendantOf(slides[i], diagramSlide.id)) {
+        return i;
+      }
+    }
+    return slides.length;
+  }
+
+  getLastDescendantSlideIndex(diagramSlide) {
+    const slides = window.state ? window.state.slides : [];
+    const diagramIndex = slides.indexOf(diagramSlide);
+    if (diagramIndex === -1) return -1;
+    let lastIdx = -1;
+    for (let i = diagramIndex + 1; i < slides.length; i++) {
+      if (this.isDescendantOf(slides[i], diagramSlide.id)) {
+        lastIdx = i;
+      } else {
+        break;
+      }
+    }
+    return lastIdx;
+  }
+
+  getLastNodeParentDiagram(slide, allowParentOverview = false) {
+    if (!slide || !slide.isFlowChild || !slide.parentFlowSlideId) return null;
+    const slides = window.state ? window.state.slides : [];
+    const parentIndex = slides.findIndex(s => s.id === slide.parentFlowSlideId);
+    if (parentIndex === -1) return null;
+    const parentSlide = slides[parentIndex];
+
+    const directChildren = slides.filter(s => s.parentFlowSlideId === parentSlide.id);
+    if (directChildren.length === 0) return null;
+
+    const lastDirectChild = directChildren[directChildren.length - 1];
+
+    if (lastDirectChild.id === slide.id) {
+      if (!allowParentOverview) {
+        // If this slide itself has child slides (i.e. is an uncompleted sub-diagram), don't treat it as a terminal leaf
+        const hasOwnChildren = slides.some(s => s.parentFlowSlideId === slide.id);
+        if (hasOwnChildren) return null;
+      }
+      return { parentSlide, parentIndex };
+    }
+
+    return null;
+  }
+
   nextSlide() {
     if (this.isTransitioning) return;
-    if (this.currentSlideIndex < window.state.slides.length - 1) {
+    const slides = window.state ? window.state.slides : [];
+    const currentSlide = slides[this.currentSlideIndex];
+    if (!currentSlide) return;
+
+    if (!this.completedFlowOverviews) this.completedFlowOverviews = new Set();
+
+    // Case 1: Currently on an overview diagram that was marked as completed (already returned from last node)
+    if (currentSlide.isZoomFlow && this.completedFlowOverviews.has(currentSlide.id)) {
+      this.completedFlowOverviews.delete(currentSlide.id);
+
+      // If this diagram is itself the last node of an outer parent diagram, return to the outer diagram overview!
+      const outerDiagramInfo = this.getLastNodeParentDiagram(currentSlide, true);
+      if (outerDiagramInfo) {
+        const { parentSlide, parentIndex } = outerDiagramInfo;
+        this.completedFlowOverviews.add(parentSlide.id);
+        this.goToSlide(parentIndex);
+        return;
+      }
+
+      // Otherwise advance to the slide after this diagram
+      const afterIndex = this.getSlideIndexAfterDiagram(currentSlide);
+      if (afterIndex !== -1 && afterIndex < slides.length) {
+        this.goToSlide(afterIndex);
+        return;
+      }
+    }
+
+    // Case 2: Currently on the last node of a diagram -> return to the diagram's overview before continuing
+    const parentDiagramInfo = this.getLastNodeParentDiagram(currentSlide, false);
+    if (parentDiagramInfo) {
+      const { parentSlide, parentIndex } = parentDiagramInfo;
+      this.completedFlowOverviews.add(parentSlide.id);
+      this.goToSlide(parentIndex);
+      return;
+    }
+
+    // Default: normal next slide
+    if (this.currentSlideIndex < slides.length - 1) {
       this.goToSlide(this.currentSlideIndex + 1);
     }
   }
 
   prevSlide() {
     if (this.isTransitioning) return;
+    const slides = window.state ? window.state.slides : [];
+    const currentSlide = slides[this.currentSlideIndex];
+    if (!currentSlide) return;
+
+    if (!this.completedFlowOverviews) this.completedFlowOverviews = new Set();
+
+    // If currently on an overview that was marked completed (just returned from the last node),
+    // pressing previous should take us back into the last node of this diagram
+    if (currentSlide.isZoomFlow && this.completedFlowOverviews.has(currentSlide.id)) {
+      this.completedFlowOverviews.delete(currentSlide.id);
+      const lastDescendantIndex = this.getLastDescendantSlideIndex(currentSlide);
+      if (lastDescendantIndex !== -1) {
+        this.goToSlide(lastDescendantIndex);
+        return;
+      }
+    }
+
     if (this.currentSlideIndex > 0) {
       this.goToSlide(this.currentSlideIndex - 1);
     }
@@ -229,8 +349,8 @@ class PresenterEngine {
 
     const getFlowId = (s) => {
       if (!s) return null;
+      if (s.isFlowChild && s.parentFlowSlideId) return s.parentFlowSlideId;
       if (s.isZoomFlow) return s.id;
-      if (s.isFlowChild) return s.parentFlowSlideId;
       return null;
     };
 
@@ -239,8 +359,12 @@ class PresenterEngine {
 
     // If navigating within the same Zoom Flow family, run cinematic camera transitions!
     if (prevFlowId && targetFlowId && prevFlowId === targetFlowId && this.currentZoomController) {
-      const fromNodeIdx = prevSlide.isZoomFlow ? -1 : (prevSlide.flowNodeIndex !== undefined ? prevSlide.flowNodeIndex : -1);
-      const toNodeIdx = targetSlide.isZoomFlow ? -1 : (targetSlide.flowNodeIndex !== undefined ? targetSlide.flowNodeIndex : -1);
+      const fromNodeIdx = (prevSlide.isZoomFlow && !prevSlide.isFlowChild)
+        ? -1
+        : (prevSlide.flowNodeIndex !== undefined ? prevSlide.flowNodeIndex : -1);
+      const toNodeIdx = (targetSlide.isZoomFlow && !targetSlide.isFlowChild)
+        ? -1
+        : (targetSlide.flowNodeIndex !== undefined ? targetSlide.flowNodeIndex : -1);
 
       if (fromNodeIdx !== toNodeIdx) {
         this.isTransitioning = true;
@@ -320,8 +444,8 @@ class PresenterEngine {
 
     const getFlowId = (s) => {
       if (!s) return null;
+      if (s.isFlowChild && s.parentFlowSlideId) return s.parentFlowSlideId;
       if (s.isZoomFlow) return s.id;
-      if (s.isFlowChild) return s.parentFlowSlideId;
       return null;
     };
 
@@ -329,7 +453,7 @@ class PresenterEngine {
 
     // If this slide is part of a Zoom Flow family (parent or child)
     if (flowId && window.zoomFlowEngine) {
-      const parentFlowSlide = slide.isZoomFlow
+      const parentFlowSlide = (slide.isZoomFlow && !slide.isFlowChild)
         ? slide
         : window.state.slides.find(s => s.id === flowId) || slide;
 
@@ -371,7 +495,7 @@ class PresenterEngine {
         this.buildZoomHUDDots(parentFlowSlide.zoomFlowData?.nodes || []);
       }
 
-      if (slide.isZoomFlow) {
+      if (slide.isZoomFlow && !slide.isFlowChild) {
         if (this.currentZoomController && typeof this.currentZoomController.setSlideOverlayState === 'function') {
           this.currentZoomController.setSlideOverlayState(false);
         }
@@ -460,31 +584,43 @@ class PresenterEngine {
       this.currentZoomController.setSlideOverlayState(true);
     }
 
-    slide.elements.forEach(el => {
-      const dom = window.canvasEngine.createElementDOM(el);
-      dom.style.cursor = 'default';
-      dom.onmousedown = null;
-      this.slideOverlay.appendChild(dom);
+    if (slide.zoomFlowData && window.zoomFlowEngine && (!slide.elements || slide.elements.length === 0 || slide.hasNestedDiagram || slide.isNestedFlow)) {
+      const dims = CONFIG.aspectRatios[window.state.aspectRatio] || CONFIG.aspectRatios['16_9'];
+      const subController = window.zoomFlowEngine.createZoomFlowDOM(slide.zoomFlowData, {
+        isPresenter: true,
+        flowSlideId: slide.id,
+        width: dims.width,
+        height: dims.height,
+        onNodeChange: (idx, node) => this.syncPresenterZoomHUD(idx, node)
+      });
+      this.slideOverlay.appendChild(subController.wrapper);
+    } else if (slide.elements) {
+      slide.elements.forEach(el => {
+        const dom = window.canvasEngine.createElementDOM(el);
+        dom.style.cursor = 'default';
+        dom.onmousedown = null;
+        this.slideOverlay.appendChild(dom);
 
-      if (el.type === 'chart') {
-        const canvas = dom.querySelector('canvas');
-        if (canvas && typeof Chart !== 'undefined') {
-          const ctx = canvas.getContext('2d');
-          new Chart(ctx, {
-            type: el.chartType || 'bar',
-            data: {
-              labels: el.labels || ['A', 'B', 'C'],
-              datasets: el.datasets || [{ label: 'Data', data: [10, 20, 30] }]
-            },
-            options: {
-              responsive: true,
-              maintainAspectRatio: false,
-              animation: { duration: 400 }
-            }
-          });
+        if (el.type === 'chart') {
+          const canvas = dom.querySelector('canvas');
+          if (canvas && typeof Chart !== 'undefined') {
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+              type: el.chartType || 'bar',
+              data: {
+                labels: el.labels || ['A', 'B', 'C'],
+                datasets: el.datasets || [{ label: 'Data', data: [10, 20, 30] }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: { duration: 400 }
+              }
+            });
+          }
         }
-      }
-    });
+      });
+    }
 
     // Return Breadcrumb banner on top
     const banner = document.createElement('div');

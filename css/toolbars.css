@@ -476,7 +476,7 @@
 .slide-thumb-card {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 6px;
   border-radius: 8px;
   background: var(--bg-surface);
@@ -484,6 +484,8 @@
   cursor: pointer;
   position: relative;
   transition: all 0.15s ease;
+  flex-shrink: 0;
+  box-sizing: border-box;
 }
 
 .slide-thumb-card:hover {
@@ -502,10 +504,12 @@
   color: var(--text-secondary);
   width: 18px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .thumb-preview-wrap {
   width: 136px;
+  max-width: calc(100% - 24px);
   aspect-ratio: 16 / 9;
   height: auto;
   background: #ffffff;

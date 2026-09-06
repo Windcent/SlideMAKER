@@ -550,6 +550,19 @@ class ExportEngine {
     .zf-node-jump-btn { margin-top:6px; background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.15); color:#ffffff; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer; transition:all 0.15s ease; width:100%; }
     .zf-node-jump-btn:hover { background:var(--node-color, #00A350); border-color:var(--node-color, #00A350); }
 
+    /* Embedded Nested Diagram inside Node Card */
+    .zoom-flow-nested-diagram-preview { margin-top:6px; padding:7px 9px; background:rgba(0,0,0,0.45); backdrop-filter:blur(8px); border:1px solid rgba(255,255,255,0.12); border-radius:8px; display:flex; flex-direction:column; gap:6px; position:relative; overflow:hidden; }
+    .zoom-flow-nested-diagram-preview::before { content:''; position:absolute; top:0; left:0; right:0; height:2px; background:linear-gradient(90deg, #00A350, #7FC23F, #38BDF8); opacity:0.8; }
+    .zf-nested-header { display:flex; align-items:center; justify-content:space-between; gap:6px; }
+    .zf-nested-flow-pill { font-size:10px; font-weight:700; color:#7fc23f; display:flex; align-items:center; gap:5px; }
+    .zf-nested-count-badge { font-size:9px; font-weight:600; text-transform:uppercase; color:#94a3b8; background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:999px; }
+    .zf-mini-nodes-track { display:flex; align-items:center; gap:4px; overflow-x:auto; padding:2px 0; }
+    .zf-mini-subnode { display:flex; align-items:center; gap:4px; padding:2.5px 6px; background:rgba(255,255,255,0.07); border:1px solid var(--sub-color, #00A350); border-radius:5px; font-size:9px; color:#ffffff; white-space:nowrap; flex-shrink:0; }
+    .zf-mini-subnode-lbl { max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+    .zf-mini-connector { font-size:7.5px; color:rgba(255,255,255,0.4); flex-shrink:0; }
+    .zf-btn-zoom-nested { display:flex; align-items:center; justify-content:center; gap:5px; padding:4px 8px; background:linear-gradient(135deg, rgba(0,163,80,0.28), rgba(56,189,248,0.22)); border:1px solid rgba(127,194,63,0.55); border-radius:5px; color:#ffffff; font-size:9.5px; font-weight:700; cursor:pointer; transition:all 0.2s ease; margin-top:2px; }
+    .zf-btn-zoom-nested:hover { background:linear-gradient(135deg, rgba(0,163,80,0.55), rgba(56,189,248,0.45)); border-color:#7fc23f; }
+
     /* Fullscreen Cinematic Zoom & Slide Crossfade */
     .zoom-flow-stage.is-zooming-fullscreen { transition: transform 0.52s cubic-bezier(0.22, 1, 0.36, 1) !important; }
     .zoom-flow-stage.is-zooming-fullscreen .zoom-flow-node:not(.is-active-node) { opacity: 0 !important; transition: opacity 0.35s ease !important; }
@@ -847,8 +860,108 @@ class ExportEngine {
       return '<svg width="100%" height="100%" viewBox="0 0 ' + w + ' ' + h + '">' + path + '</svg>';
     }
 
-    function prevSlide() { if (currentIndex > 0) renderSlide(currentIndex - 1); }
-    function nextSlide() { if (currentIndex < DATA.slides.length - 1) renderSlide(currentIndex + 1); }
+    const completedFlowOverviews = new Set();
+
+    function isDescendantOf(slide, ancestorId) {
+      if (!slide || !ancestorId) return false;
+      let cur = slide;
+      const visited = new Set();
+      while (cur && cur.parentFlowSlideId && !visited.has(cur.id)) {
+        visited.add(cur.id);
+        if (cur.parentFlowSlideId === ancestorId) return true;
+        cur = DATA.slides.find(s => s.id === cur.parentFlowSlideId);
+      }
+      return false;
+    }
+
+    function getSlideIndexAfterDiagram(diagramSlide) {
+      const diagramIndex = DATA.slides.indexOf(diagramSlide);
+      if (diagramIndex === -1) return -1;
+      for (let i = diagramIndex + 1; i < DATA.slides.length; i++) {
+        if (!isDescendantOf(DATA.slides[i], diagramSlide.id)) {
+          return i;
+        }
+      }
+      return DATA.slides.length;
+    }
+
+    function getLastDescendantSlideIndex(diagramSlide) {
+      const diagramIndex = DATA.slides.indexOf(diagramSlide);
+      if (diagramIndex === -1) return -1;
+      let lastIdx = -1;
+      for (let i = diagramIndex + 1; i < DATA.slides.length; i++) {
+        if (isDescendantOf(DATA.slides[i], diagramSlide.id)) {
+          lastIdx = i;
+        } else {
+          break;
+        }
+      }
+      return lastIdx;
+    }
+
+    function getLastNodeParentDiagram(slide, allowParentOverview = false) {
+      if (!slide || !slide.isFlowChild || !slide.parentFlowSlideId) return null;
+      const parentIndex = DATA.slides.findIndex(s => s.id === slide.parentFlowSlideId);
+      if (parentIndex === -1) return null;
+      const parentSlide = DATA.slides[parentIndex];
+
+      const directChildren = DATA.slides.filter(s => s.parentFlowSlideId === parentSlide.id);
+      if (directChildren.length === 0) return null;
+
+      const lastDirectChild = directChildren[directChildren.length - 1];
+
+      if (lastDirectChild.id === slide.id) {
+        if (!allowParentOverview) {
+          const hasOwnChildren = DATA.slides.some(s => s.parentFlowSlideId === slide.id);
+          if (hasOwnChildren) return null;
+        }
+        return { parentSlide, parentIndex };
+      }
+
+      return null;
+    }
+
+    function prevSlide() {
+      const currentSlide = DATA.slides[currentIndex];
+      if (currentSlide && currentSlide.isZoomFlow && completedFlowOverviews.has(currentSlide.id)) {
+        completedFlowOverviews.delete(currentSlide.id);
+        const lastDescendant = getLastDescendantSlideIndex(currentSlide);
+        if (lastDescendant !== -1) {
+          renderSlide(lastDescendant);
+          return;
+        }
+      }
+      if (currentIndex > 0) renderSlide(currentIndex - 1);
+    }
+
+    function nextSlide() {
+      const currentSlide = DATA.slides[currentIndex];
+      if (!currentSlide) return;
+
+      if (currentSlide.isZoomFlow && completedFlowOverviews.has(currentSlide.id)) {
+        completedFlowOverviews.delete(currentSlide.id);
+        const outerDiagram = getLastNodeParentDiagram(currentSlide, true);
+        if (outerDiagram) {
+          completedFlowOverviews.add(outerDiagram.parentSlide.id);
+          renderSlide(outerDiagram.parentIndex);
+          return;
+        }
+        const afterIndex = getSlideIndexAfterDiagram(currentSlide);
+        if (afterIndex !== -1 && afterIndex < DATA.slides.length) {
+          renderSlide(afterIndex);
+          return;
+        }
+      }
+
+      const parentInfo = getLastNodeParentDiagram(currentSlide, false);
+      if (parentInfo) {
+        completedFlowOverviews.add(parentInfo.parentSlide.id);
+        renderSlide(parentInfo.parentIndex);
+        return;
+      }
+
+      if (currentIndex < DATA.slides.length - 1) renderSlide(currentIndex + 1);
+    }
 
     function showHud() {
       hud.classList.remove('is-hidden');
@@ -1146,9 +1259,16 @@ class ExportEngine {
         nEl.className = 'zoom-flow-node';
         nEl.style.left = pos.x + 'px';
         nEl.style.top = pos.y + 'px';
-        nEl.style.setProperty('--node-color', node.color || '#00A350');
+        nEl.innerHTML = '<div class="zoom-flow-node-card"><h4 class="zoom-flow-node-title">' + node.title + '</h4>' + (node.subtitle ? ('<p class="zoom-flow-node-sub">' + node.subtitle + '</p>') : '') + '</div>';
 
-        nEl.innerHTML = '<div class="zoom-flow-node-card"><h4 class="zoom-flow-node-title">' + node.title + '</h4>' + (node.subtitle ? ('<p class="zoom-flow-node-sub">' + node.subtitle + '</p>') : '') + '<div class="zoom-detail-popout">' + (node.metricVal ? ('<div class="zoom-detail-metric-badge"><div><div class="zoom-detail-metric-val">' + node.metricVal + '</div><div class="zoom-detail-metric-lbl">' + (node.metricLbl || 'Key Metric') + '</div></div></div>') : '') + '<p class="zoom-detail-summary">' + (node.summary || '') + '</p>' + (node.bullets && node.bullets.length ? ('<ul class="zoom-detail-bullets">' + node.bullets.map(b => '<li>' + b + '</li>').join('') + '</ul>') : '') + '<button class="zf-node-jump-btn" data-index="' + idx + '" title="Open this node\'s full slide"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide</button></div></div>';
+        nEl.querySelector('.zf-btn-zoom-nested')?.addEventListener('click', function(e) {
+          e.stopPropagation();
+          navigateToSlideIndex(idx);
+        });
+        nEl.querySelector('.zf-btn-open-nested')?.addEventListener('click', function(e) {
+          e.stopPropagation();
+          navigateToSlideIndex(idx);
+        });
 
         zoomStage.appendChild(nEl);
         nodeEls.push(nEl);

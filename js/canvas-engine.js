@@ -248,6 +248,31 @@ class CanvasEngine {
         }
       }
 
+      // If this is a nested Zoom Flow slide (child of another flow), render Return Breadcrumb banner on top
+      if (slide.isFlowChild) {
+        const banner = document.createElement('div');
+        banner.className = 'zf-child-breadcrumb-banner';
+        banner.style.zIndex = '2000';
+        banner.style.pointerEvents = 'auto';
+        banner.innerHTML = `
+          <i class="fa-solid fa-arrow-left" style="color:var(--udes-lime);font-size:12px;"></i>
+          <span>Return to Main Diagram Overview</span>
+        `;
+        banner.title = 'Click to return to the Main Flow Diagram';
+        banner.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const parentId = slide.parentFlowSlideId || slide.rootFlowSlideId;
+          const parentIdx = parentId ? window.state.slides.findIndex(s => s.id === parentId) : -1;
+          if (parentIdx !== -1) {
+            window.state.setActiveSlideIndex(parentIdx);
+          } else {
+            const anyFlowIdx = window.state.slides.findIndex(s => s.isZoomFlow && !s.isFlowChild);
+            if (anyFlowIdx !== -1) window.state.setActiveSlideIndex(anyFlowIdx);
+          }
+        });
+        elementsLayer.appendChild(banner);
+      }
+
       return;
     }
 
@@ -263,15 +288,19 @@ class CanvasEngine {
 
     // If this is a child slide linked to a Zoom Flow diagram, render Return Breadcrumb banner on top
     if (slide.isFlowChild) {
+      const parentSlide = slide.parentFlowSlideId ? window.state.slides.find(s => s.id === slide.parentFlowSlideId) : null;
+      const isLevel2 = (slide.nestingLevel === 2) || (parentSlide && parentSlide.isFlowChild);
+      const parentTitle = parentSlide ? (parentSlide.flowNodeTitle || parentSlide.zoomFlowData?.title || 'Diagram') : 'Diagram';
+
       const banner = document.createElement('div');
       banner.className = 'zf-child-breadcrumb-banner';
       banner.style.zIndex = '2000';
       banner.style.pointerEvents = 'auto';
       banner.innerHTML = `
         <i class="fa-solid fa-arrow-left" style="color:var(--udes-lime);font-size:12px;"></i>
-        <span>Return to Flow Diagram</span>
+        <span>${isLevel2 ? `Return to Sub-Diagram (${parentTitle})` : 'Return to Flow Diagram'}</span>
       `;
-      banner.title = 'Click to return to the Main Flow Diagram';
+      banner.title = isLevel2 ? `Click to return to ${parentTitle}` : 'Click to return to the Main Flow Diagram';
       banner.addEventListener('click', (e) => {
         e.stopPropagation();
         this.returningFromNodeIndex = slide.flowNodeIndex !== undefined ? slide.flowNodeIndex : 0;

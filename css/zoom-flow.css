@@ -834,93 +834,318 @@
   z-index: 5;
 }
 
-/* 7. Text-Based Slide Thumbnails in Sidebar */
-.slide-thumb-card.is-flow-child {
-  margin-left: 14px;
+/* 7. Hierarchical Nested List Structure & Thumbnails in Sidebar */
+.slide-thumb-card.is-level-0 {
+  margin-left: 0;
+}
+
+.slide-thumb-card.is-level-1 {
+  margin-left: 18px;
   position: relative;
 }
 
-.slide-thumb-card.is-flow-child::before {
-  content: '';
+.slide-thumb-card.is-level-2 {
+  margin-left: 36px;
+  position: relative;
+}
+
+/* Tree Guides (Lines & Elbows) */
+.thumb-tree-guide {
+  position: absolute;
+  top: -12px;
+  bottom: 50%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.thumb-guide-level-1 {
+  left: -14px;
+  width: 14px;
+}
+
+.thumb-guide-level-1 .thumb-guide-elbow {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 12px;
+  height: 100%;
+  border-left: 2px solid var(--flow-color, var(--udes-green));
+  border-bottom: 2px solid var(--flow-color, var(--udes-green));
+  border-bottom-left-radius: 4px;
+  opacity: 0.65;
+}
+
+.thumb-guide-level-2 {
+  left: -28px;
+  width: 28px;
+}
+
+.thumb-guide-level-2 .thumb-guide-trunk {
+  position: absolute;
+  left: -14px;
+  top: -10px;
+  bottom: -20px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.thumb-guide-level-2 .thumb-guide-elbow {
+  position: absolute;
+  left: 4px;
+  top: 0;
+  width: 20px;
+  height: 100%;
+  border-left: 2px solid var(--flow-color, #38bdf8);
+  border-bottom: 2px solid var(--flow-color, #38bdf8);
+  border-bottom-left-radius: 4px;
+  opacity: 0.8;
+}
+
+/* Collapsible Tree Toggle Button */
+.thumb-tree-toggle {
   position: absolute;
   left: -9px;
   top: 50%;
-  width: 7px;
-  height: 2px;
-  background: var(--flow-color, var(--udes-green));
-  opacity: 0.6;
+  transform: translateY(-50%);
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  background: #0f172a;
+  border: 1.5px solid var(--border-medium);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 8.5px;
+  cursor: pointer;
+  z-index: 12;
+  transition: all 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4);
 }
 
-.thumb-text-wrap {
-  width: 136px;
-  min-height: 72px;
-  background: linear-gradient(135deg, rgba(23, 37, 66, 0.95) 0%, rgba(15, 23, 42, 0.98) 100%);
-  border: 1px solid var(--border-strong);
-  border-left: 4px solid var(--flow-color, var(--udes-green));
-  border-radius: 6px;
-  padding: 7px 9px;
+.thumb-tree-toggle:hover {
+  background: var(--udes-green);
+  border-color: var(--udes-lime);
+  color: #ffffff;
+  transform: translateY(-50%) scale(1.18);
+  box-shadow: 0 0 8px rgba(0, 163, 80, 0.6);
+}
+
+.thumb-tree-toggle.is-collapsed {
+  background: rgba(30, 41, 59, 0.95);
+  border-color: var(--udes-lime);
+  color: var(--udes-lime);
+}
+
+.thumb-collapsed-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--udes-lime);
+  background: rgba(0, 163, 80, 0.15);
+  border: 1px solid rgba(127, 194, 63, 0.35);
+  border-radius: 999px;
+  padding: 1px 7px;
+  margin-top: 2px;
+  width: fit-content;
+}
+
+.thumb-collapsed-overlay {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  z-index: 10;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.6);
+  backdrop-filter: blur(4px);
+}
+
+.slide-thumb-card.is-level-1 .thumb-preview-wrap {
+  width: 122px;
+}
+
+.slide-thumb-card.is-level-2 .thumb-preview-wrap {
+  width: 106px;
+}
+
+/* Generic Flowchart Symbol in Thumbnail */
+.thumb-flowchart-symbol {
+  width: 100%;
+  height: 100%;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
-  gap: 4px;
-  overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
-  transition: all 0.2s ease;
-  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 4px 6px;
   box-sizing: border-box;
+  background: radial-gradient(circle at center, rgba(13, 56, 42, 0.75) 0%, rgba(6, 17, 13, 0.98) 100%);
+  user-select: none;
 }
 
-.slide-thumb-card:hover .thumb-text-wrap {
-  border-color: var(--flow-color, var(--udes-lime));
-  background: linear-gradient(135deg, rgba(30, 48, 80, 0.98) 0%, rgba(20, 30, 52, 0.98) 100%);
-  transform: translateY(-1px);
+.thumb-flowchart-svg {
+  width: 72px;
+  height: 38px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
 }
 
-.slide-thumb-card.is-active .thumb-text-wrap {
-  border-color: var(--flow-color, var(--udes-lime));
-  box-shadow: 0 0 14px rgba(0, 163, 80, 0.35);
+.thumb-flowchart-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 8.5px;
+  font-weight: 700;
+  color: #ffffff;
+  max-width: 95%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  letter-spacing: 0.3px;
+  opacity: 0.92;
 }
 
-.thumb-text-header {
+/* Embedded Nested Diagram inside Node Card */
+.zoom-flow-nested-diagram-preview {
+  margin-top: 6px;
+  padding: 7px 9px;
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.zoom-flow-nested-diagram-preview::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #00A350, #7FC23F, #38BDF8);
+  opacity: 0.8;
+}
+
+.zoom-flow-nested-diagram-preview:hover {
+  border-color: rgba(127, 194, 63, 0.5);
+  background: rgba(0, 0, 0, 0.6);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+}
+
+.zf-nested-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 4px;
+  gap: 6px;
 }
 
-.thumb-text-tag {
-  font-size: 8.5px;
+.zf-nested-flow-pill {
+  font-size: 10px;
   font-weight: 700;
+  color: var(--udes-lime);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  letter-spacing: 0.2px;
+}
+
+.zf-nested-count-badge {
+  font-size: 9px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.4px;
+  color: #94a3b8;
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.zf-mini-nodes-track {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 2px 0;
+  scrollbar-width: none;
+}
+
+.zf-mini-nodes-track::-webkit-scrollbar {
+  display: none;
+}
+
+.zf-mini-subnode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2.5px 6px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--sub-color, #00A350);
+  border-radius: 5px;
+  font-size: 9px;
   color: #ffffff;
-  padding: 1px 5px;
-  border-radius: 3px;
-  background: var(--flow-color, var(--udes-green));
-  max-width: 85px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+}
+
+.zf-mini-subnode:hover {
+  transform: translateY(-1px);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 8px var(--sub-color, #7FC23F);
+}
+
+.zf-mini-subnode i {
+  color: var(--sub-color, #7FC23F);
+  font-size: 8.5px;
+}
+
+.zf-mini-subnode-lbl {
+  max-width: 70px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.thumb-text-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: #ffffff;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.zf-mini-connector {
+  font-size: 7.5px;
+  color: rgba(255, 255, 255, 0.4);
+  flex-shrink: 0;
+  animation: pulseMiniConnector 2.2s infinite ease-in-out;
 }
 
-.thumb-text-sub {
+@keyframes pulseMiniConnector {
+  0%, 100% { opacity: 0.35; transform: translateX(0); }
+  50% { opacity: 0.9; transform: translateX(1.5px); color: var(--udes-lime); }
+}
+
+.zf-btn-zoom-nested {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 4px 8px;
+  background: linear-gradient(135deg, rgba(0, 163, 80, 0.28), rgba(56, 189, 248, 0.22));
+  border: 1px solid rgba(127, 194, 63, 0.55);
+  border-radius: 5px;
+  color: #ffffff;
   font-size: 9.5px;
-  color: var(--text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  line-height: 1.2;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 2px;
+}
+
+.zf-btn-zoom-nested:hover {
+  background: linear-gradient(135deg, rgba(0, 163, 80, 0.55), rgba(56, 189, 248, 0.45));
+  border-color: var(--udes-lime);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 163, 80, 0.35);
 }
 
 /* 8. On-Slide Dropdown Menu from the Main Flow Slide */

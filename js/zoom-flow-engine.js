@@ -86,7 +86,54 @@ class ZoomFlowEngine {
               'Modular component system built with Vanilla CSS variables',
               'Dynamic multi-layered canvas engine with coordinate transforms',
               'Real-time undo/redo history stack management'
-            ]
+            ],
+            nestedDiagram: {
+              title: 'Architecture Blueprint & Subsystems',
+              subtitle: 'Multi-layer system infrastructure',
+              theme: 'udes-emerald',
+              nodes: [
+                {
+                  id: 'sub_arch_1',
+                  title: 'A1. API Gateway',
+                  subtitle: 'Edge Routing & Auth',
+                  icon: 'fa-network-wired',
+                  color: '#00A350',
+                  status: 'Gateway',
+                  metricVal: '2.4ms',
+                  metricLbl: 'Latency',
+                  summary: 'Secure edge proxy handling authentication tokens, rate limiting, and SSL termination.',
+                  bullets: ['Zero-trust token verification', 'Load-balanced dynamic ingress', 'DDoS filtering shield']
+                },
+                {
+                  id: 'sub_arch_2',
+                  title: 'A2. Business Engine',
+                  subtitle: 'Domain Logic & Services',
+                  icon: 'fa-microchip',
+                  color: '#7FC23F',
+                  status: 'Compute',
+                  metricVal: '12k req/s',
+                  metricLbl: 'Throughput',
+                  summary: 'High-concurrency microservices orchestrating business transactions and presentation transforms.',
+                  bullets: ['Stateless containerized services', 'Event-driven message bus integration', 'Automatic autoscaling groups']
+                },
+                {
+                  id: 'sub_arch_3',
+                  title: 'A3. Persistence & Cache',
+                  subtitle: 'Distributed Data Layer',
+                  icon: 'fa-database',
+                  color: '#38BDF8',
+                  status: 'Storage',
+                  metricVal: '99.99%',
+                  metricLbl: 'Availability',
+                  summary: 'Clustered distributed database with multi-region replication and Redis in-memory cache.',
+                  bullets: ['Zero-downtime automated backups', 'Encrypted at-rest and in-transit', 'Sub-millisecond query caches']
+                }
+              ],
+              connections: [
+                { from: 'sub_arch_1', to: 'sub_arch_2', fromPort: 'right', toPort: 'left' },
+                { from: 'sub_arch_2', to: 'sub_arch_3', fromPort: 'right', toPort: 'left' }
+              ]
+            }
           },
           {
             id: 'node_3',
@@ -1465,30 +1512,6 @@ class ZoomFlowEngine {
         <div class="zoom-flow-node-card">
           <h4 class="zoom-flow-node-title">${node.title}</h4>
           ${node.subtitle ? `<p class="zoom-flow-node-sub">${node.subtitle}</p>` : ''}
-
-          <!-- Zoom Popout Detailed Drawer (Visible when camera zooms into this node) -->
-          <div class="zoom-detail-popout">
-            ${node.metricVal ? `
-              <div class="zoom-detail-metric-badge">
-                <div>
-                  <div class="zoom-detail-metric-val">${node.metricVal}</div>
-                  <div class="zoom-detail-metric-lbl">${node.metricLbl || 'Key Metric'}</div>
-                </div>
-              </div>
-            ` : ''}
-
-            <p class="zoom-detail-summary">${node.summary || ''}</p>
-
-            ${node.bullets && node.bullets.length > 0 ? `
-              <ul class="zoom-detail-bullets">
-                ${node.bullets.map(b => `<li>${b}</li>`).join('')}
-              </ul>
-            ` : ''}
-
-            <button class="zf-node-jump-btn" data-index="${idx}" title="Open this node's full slide">
-              <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide
-            </button>
-          </div>
         </div>
       `;
 
@@ -2103,7 +2126,22 @@ class ZoomFlowEngine {
         }
       });
 
+      nodeEl.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        navigateToChildSlide(idx);
+      });
+
       nodeEl.querySelector('.zf-node-jump-btn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigateToChildSlide(idx);
+      });
+
+      nodeEl.querySelector('.zf-btn-zoom-nested')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        navigateToChildSlide(idx);
+      });
+
+      nodeEl.querySelector('.zf-btn-open-nested')?.addEventListener('click', (e) => {
         e.stopPropagation();
         navigateToChildSlide(idx);
       });

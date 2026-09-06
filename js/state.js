@@ -69,6 +69,10 @@ class PresentationState {
       notes: options.notes || '',
       transition: options.transition || 'fade',
       isZoomFlow: !!options.isZoomFlow,
+      isNestedFlow: !!options.isNestedFlow,
+      hasNestedDiagram: !!options.hasNestedDiagram,
+      nestingLevel: options.nestingLevel !== undefined ? options.nestingLevel : (options.parentFlowSlideId ? 1 : 0),
+      rootFlowSlideId: options.rootFlowSlideId || null,
       zoomFlowData: options.zoomFlowData ? JSON.parse(JSON.stringify(options.zoomFlowData)) : null,
       isFlowChild: !!options.isFlowChild,
       parentFlowSlideId: options.parentFlowSlideId || null,
@@ -363,6 +367,7 @@ class PresentationState {
     // Generate regular child slides for each node
     const nodes = flowData.nodes || [];
     if (window.zoomFlowEngine && nodes.length > 0) {
+      let offset = 1;
       nodes.forEach((node, i) => {
         const child = window.zoomFlowEngine.generateChildSlide(
           node,
@@ -371,15 +376,201 @@ class PresentationState {
           nodes.length,
           flowData.theme || 'udes-emerald'
         );
+        child.nestingLevel = 1;
+        child.rootFlowSlideId = mainSlide.id;
         mainSlide.childSlideIds.push(child.id);
-        this.slides.splice(targetIndex + 1 + i, 0, child);
+        this.slides.splice(targetIndex + offset, 0, child);
+        offset++;
+
+        // If this node has a nested diagram, generate Level 2 grandchild slides
+        if (node.nestedDiagram && Array.isArray(node.nestedDiagram.nodes) && node.nestedDiagram.nodes.length > 0) {
+          child.hasNestedDiagram = true;
+          child.isZoomFlow = true;
+          child.isNestedFlow = true;
+          child.zoomFlowData = JSON.parse(JSON.stringify(node.nestedDiagram));
+          child.childSlideIds = child.childSlideIds || [];
+
+          const subNodes = node.nestedDiagram.nodes;
+          subNodes.forEach((subNode, sIdx) => {
+            const grandChild = window.zoomFlowEngine.generateChildSlide(
+              subNode,
+              child.id,
+              sIdx,
+              subNodes.length,
+              node.nestedDiagram.theme || flowData.theme || 'udes-emerald'
+            );
+            grandChild.parentFlowSlideId = child.id;
+            grandChild.rootFlowSlideId = mainSlide.id;
+            grandChild.nestingLevel = 2;
+            grandChild.isFlowChild = true;
+            child.childSlideIds.push(grandChild.id);
+            this.slides.splice(targetIndex + offset, 0, grandChild);
+            offset++;
+          });
+        }
       });
     }
 
+    this.reorderSlidesHierarchically();
     this.activeSlideIndex = targetIndex;
     this.selectedElementIds = [];
     this.notify('slideAdded', { index: targetIndex, slide: mainSlide });
     return mainSlide;
+  }
+
+  reorderSlidesHierarchically() {
+    if (!this.slides || this.slides.length <= 1) return;
+
+    const currentActiveSlide = this.slides[this.activeSlideIndex];
+    const ordered = [];
+    const visited = new Set();
+
+    // Helper to get direct children of a slide in canonical node order
+    const getOrderedChildren = (parentSlide) => {
+      const directChildren = this.slides.filter(s => s.parentFlowSlideId === parentSlide.id);
+      if (directChildren.length <= 1) return directChildren;
+
+      if (parentSlide.zoomFlowData && Array.isArray(parentSlide.zoomFlowData.nodes)) {
+        const nodes = parentSlide.zoomFlowData.nodes;
+        const getNodeIndex = (child) => {
+          if (child.flowNodeId) {
+            const idx = nodes.findIndex(n => n.id === child.flowNodeId);
+            if (idx !== -1) return idx;
+          }
+          if (typeof child.flowNodeIndex === 'number' && child.flowNodeIndex >= 0 && child.flowNodeIndex < nodes.length) {
+            return child.flowNodeIndex;
+          }
+          return 999;
+        };
+
+        directChildren.sort((a, b) => {
+          const idxA = getNodeIndex(a);
+          const idxB = getNodeIndex(b);
+          if (idxA !== idxB) return idxA - idxB;
+          return (a.flowNodeIndex ?? 0) - (b.flowNodeIndex ?? 0);
+        });
+      } else {
+        directChildren.sort((a, b) => (a.flowNodeIndex ?? 0) - (b.flowNodeIndex ?? 0));
+      }
+
+      return directChildren;
+    };
+
+    // Recursive depth-first traversal
+    const addSlideAndDescendants = (slide) => {
+      if (visited.has(slide.id)) return;
+      visited.add(slide.id);
+      ordered.push(slide);
+
+      const children = getOrderedChildren(slide);
+      for (const child of children) {
+        addSlideAndDescendants(child);
+      }
+    };
+
+    // Process top-level slides in their current relative order
+    for (const slide of this.slides) {
+      const hasParent = slide.parentFlowSlideId && this.slides.some(s => s.id === slide.parentFlowSlideId);
+      if (!hasParent) {
+        addSlideAndDescendants(slide);
+      }
+    }
+
+    // Safety fallback for any unvisited slides
+    for (const slide of this.slides) {
+      if (!visited.has(slide.id)) {
+        ordered.push(slide);
+      }
+    }
+
+    this.slides = ordered;
+
+    if (currentActiveSlide) {
+      const newActiveIdx = this.slides.indexOf(currentActiveSlide);
+      if (newActiveIdx !== -1) {
+        this.activeSlideIndex = newActiveIdx;
+      }
+    }
+  }
+
+  addNestedDiagramToNode(parentFlowSlideId, nodeIndex, nestedDiagramData = null) {
+    const parentSlide = this.slides.find(s => s.id === parentFlowSlideId);
+    if (!parentSlide || !parentSlide.zoomFlowData || !parentSlide.zoomFlowData.nodes) return null;
+    const node = parentSlide.zoomFlowData.nodes[nodeIndex];
+    if (!node) return null;
+
+    this.saveHistory('Add Nested Diagram to Node');
+
+    const defaultNestedData = nestedDiagramData || {
+      title: `${node.title} - Sub-Diagram`,
+      subtitle: '',
+      theme: parentSlide.zoomFlowData.theme || 'udes-emerald',
+      nodes: [],
+      connections: []
+    };
+
+    node.nestedDiagram = defaultNestedData;
+
+    // Find or create child slide for this node
+    let childSlide = this.slides.find(s => s.parentFlowSlideId === parentSlide.id && (s.flowNodeId === node.id || s.flowNodeIndex === nodeIndex));
+    if (!childSlide) {
+      childSlide = window.zoomFlowEngine ? window.zoomFlowEngine.generateChildSlide(node, parentSlide.id, nodeIndex, parentSlide.zoomFlowData.nodes.length) : null;
+      if (childSlide) {
+        const pIdx = this.slides.indexOf(parentSlide);
+        this.slides.splice(pIdx + 1 + nodeIndex, 0, childSlide);
+      }
+    }
+
+    if (childSlide) {
+      childSlide.hasNestedDiagram = true;
+      childSlide.isZoomFlow = true;
+      childSlide.isNestedFlow = true;
+      childSlide.zoomFlowData = JSON.parse(JSON.stringify(defaultNestedData));
+      childSlide.nestingLevel = 1;
+      childSlide.rootFlowSlideId = parentSlide.id;
+      childSlide.childSlideIds = childSlide.childSlideIds || [];
+
+      // Generate Level 2 slides for sub-nodes
+      const childIdx = this.slides.indexOf(childSlide);
+      const subNodes = defaultNestedData.nodes;
+      if (window.zoomFlowEngine && subNodes.length > 0) {
+        subNodes.forEach((sn, sIdx) => {
+          const grandChild = window.zoomFlowEngine.generateChildSlide(sn, childSlide.id, sIdx, subNodes.length, defaultNestedData.theme);
+          grandChild.parentFlowSlideId = childSlide.id;
+          grandChild.rootFlowSlideId = parentSlide.id;
+          grandChild.nestingLevel = 2;
+          grandChild.isFlowChild = true;
+          childSlide.childSlideIds.push(grandChild.id);
+          this.slides.splice(childIdx + 1 + sIdx, 0, grandChild);
+        });
+      }
+    }
+
+    this.reorderSlidesHierarchically();
+    this.notify('slideAdded', { slide: childSlide });
+    return childSlide;
+  }
+
+  removeNestedDiagramFromNode(parentFlowSlideId, nodeIndex) {
+    const parentSlide = this.slides.find(s => s.id === parentFlowSlideId);
+    if (!parentSlide || !parentSlide.zoomFlowData || !parentSlide.zoomFlowData.nodes) return;
+    const node = parentSlide.zoomFlowData.nodes[nodeIndex];
+    if (!node || !node.nestedDiagram) return;
+
+    this.saveHistory('Remove Nested Diagram');
+    delete node.nestedDiagram;
+
+    const childSlide = this.slides.find(s => s.parentFlowSlideId === parentSlide.id && (s.flowNodeId === node.id || s.flowNodeIndex === nodeIndex));
+    if (childSlide) {
+      childSlide.hasNestedDiagram = false;
+      childSlide.isNestedFlow = false;
+      // Remove Level 2 grandchildren
+      this.slides = this.slides.filter(s => s.parentFlowSlideId !== childSlide.id);
+      childSlide.childSlideIds = [];
+    }
+
+    this.reorderSlidesHierarchically();
+    this.notify('slideDeleted');
   }
 
   duplicateSlide(index = null) {

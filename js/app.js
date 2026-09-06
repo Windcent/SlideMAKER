@@ -1372,6 +1372,49 @@ class SlideMakerApp {
             <textarea id="flow-node-bullets" class="prop-input" style="height:70px;resize:vertical;">${(selectedNode.bullets || []).map(b => this.escapeHtml(b)).join('\n')}</textarea>
           </div>
 
+          <!-- Nested Sub-Diagram Section -->
+          <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border-subtle);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <label style="font-size:11px;font-weight:700;color:var(--text-secondary);display:flex;align-items:center;gap:5px;">
+                <i class="fa-solid fa-diagram-project" style="color:var(--udes-lime);"></i> Nested Sub-Diagram
+              </label>
+              ${selectedNode.nestedDiagram ? `
+                <span class="zf-badge" style="font-size:9.5px;padding:2px 6px;">
+                  ${(selectedNode.nestedDiagram.nodes || []).length} Sub-Nodes
+                </span>
+              ` : ''}
+            </div>
+
+            ${selectedNode.nestedDiagram ? `
+              <div style="background:var(--bg-surface);border:1px solid var(--border-subtle);border-radius:6px;padding:8px;display:flex;flex-direction:column;gap:6px;">
+                <div style="font-size:11.5px;font-weight:600;color:#ffffff;display:flex;align-items:center;gap:6px;">
+                  <i class="fa-solid fa-folder-tree" style="color:var(--udes-lime);font-size:12px;"></i>
+                  <span>${this.escapeHtml(selectedNode.nestedDiagram.title || 'Nested Sub-Flow')}</span>
+                </div>
+                <div style="font-size:10.5px;color:var(--text-secondary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                  ${(selectedNode.nestedDiagram.nodes || []).map(sn => this.escapeHtml(sn.title)).join(' → ') || '<span style="color:var(--text-muted);font-style:italic;">No sub-nodes yet (click Open Slide to add)</span>'}
+                </div>
+                <div style="display:flex;gap:6px;margin-top:4px;">
+                  <button class="btn btn-secondary btn-sm" id="flow-btn-open-nested-slide" style="flex:1;font-size:11px;" title="Jump to this nested diagram slide">
+                    <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Slide
+                  </button>
+                  <button class="btn btn-sm" id="flow-btn-remove-nested-diagram" style="font-size:11px;background:rgba(239,68,68,0.15);color:#ef4444;border:1px solid rgba(239,68,68,0.3);" title="Remove nested diagram">
+                    <i class="fa-solid fa-trash-can"></i>
+                  </button>
+                </div>
+              </div>
+            ` : `
+              <div style="background:rgba(0,0,0,0.2);border:1px dashed var(--border-subtle);border-radius:6px;padding:10px;text-align:center;">
+                <p style="font-size:11px;color:var(--text-secondary);margin:0 0 8px 0;line-height:1.35;">
+                  Create an interactive diagram inside this node to build multi-tier zoom presentations.
+                </p>
+                <button class="btn btn-primary btn-sm" id="flow-btn-add-nested-diagram" style="width:100%;font-size:11px;">
+                  <i class="fa-solid fa-plus"></i> Add Diagram Inside Node
+                </button>
+              </div>
+            `}
+          </div>
+
           <div style="display:flex;gap:8px;margin-top:12px;">
             <button class="btn btn-secondary btn-sm" id="flow-btn-open-child" style="flex:1;" title="Open full regular slide content">
               <i class="fa-solid fa-arrow-up-right-from-square"></i> Open Full Slide
@@ -1718,6 +1761,42 @@ class SlideMakerApp {
       }
     });
 
+    document.getElementById('flow-btn-add-nested-diagram')?.addEventListener('click', () => {
+      const activeSlide = window.state.getActiveSlide();
+      if (!activeSlide || !activeSlide.zoomFlowData) return;
+      window.state.addNestedDiagramToNode(activeSlide.id, this.selectedFlowNodeIndex);
+      window.canvasEngine.renderActiveSlide();
+      if (window.slideManager) window.slideManager.renderThumbnails();
+      this.renderFlowInspector();
+      this.showToast('Nested diagram added inside node!');
+    });
+
+    document.getElementById('flow-btn-open-nested-slide')?.addEventListener('click', () => {
+      const activeSlide = window.state.getActiveSlide();
+      if (!activeSlide || !activeSlide.zoomFlowData) return;
+      const nodes = activeSlide.zoomFlowData.nodes || [];
+      const node = nodes[this.selectedFlowNodeIndex];
+      if (!node) return;
+      const childIdx = window.state.slides.findIndex(s =>
+        s.parentFlowSlideId === activeSlide.id && (s.flowNodeIndex === this.selectedFlowNodeIndex || s.flowNodeId === node.id)
+      );
+      if (childIdx !== -1) {
+        window.state.setActiveSlideIndex(childIdx);
+      }
+    });
+
+    document.getElementById('flow-btn-remove-nested-diagram')?.addEventListener('click', () => {
+      if (confirm('Remove nested diagram from this node? This will also remove its sub-slides.')) {
+        const activeSlide = window.state.getActiveSlide();
+        if (!activeSlide || !activeSlide.zoomFlowData) return;
+        window.state.removeNestedDiagramFromNode(activeSlide.id, this.selectedFlowNodeIndex);
+        window.canvasEngine.renderActiveSlide();
+        if (window.slideManager) window.slideManager.renderThumbnails();
+        this.renderFlowInspector();
+        this.showToast('Nested diagram removed.');
+      }
+    });
+
     document.getElementById('flow-btn-delete-current-node')?.addEventListener('click', () => {
       this.deleteNodeFromActiveFlow(this.selectedFlowNodeIndex);
     });
@@ -1768,10 +1847,14 @@ class SlideMakerApp {
 
       const parentIdx = window.state.slides.findIndex(s => s.id === activeSlide.id);
       let insertIdx = parentIdx + 1;
-      while (insertIdx < window.state.slides.length && window.state.slides[insertIdx].parentFlowSlideId === activeSlide.id) {
+      while (
+        insertIdx < window.state.slides.length &&
+        (window.state.slides[insertIdx].parentFlowSlideId === activeSlide.id || window.state.slides[insertIdx].rootFlowSlideId === activeSlide.id)
+      ) {
         insertIdx++;
       }
       window.state.slides.splice(insertIdx, 0, child);
+      window.state.reorderSlidesHierarchically();
     }
 
     window.canvasEngine.renderActiveSlide();
@@ -1793,16 +1876,25 @@ class SlideMakerApp {
 
     const removedNode = nodes.splice(nodeIdx, 1)[0];
 
-    // Remove child slide and connections referencing this node
+    // Remove child slide and its descendants and connections referencing this node
     if (removedNode) {
-      window.state.slides = window.state.slides.filter(s =>
-        !(s.parentFlowSlideId === activeSlide.id && (s.flowNodeId === removedNode.id || s.flowNodeIndex === nodeIdx))
+      const childSlide = window.state.slides.find(s =>
+        s.parentFlowSlideId === activeSlide.id && (s.flowNodeId === removedNode.id || s.flowNodeIndex === nodeIdx)
       );
+      const childSlideId = childSlide ? childSlide.id : null;
+
+      window.state.slides = window.state.slides.filter(s => {
+        if (s.parentFlowSlideId === activeSlide.id && (s.flowNodeId === removedNode.id || s.flowNodeIndex === nodeIdx)) return false;
+        if (childSlideId && (s.parentFlowSlideId === childSlideId || s.rootFlowSlideId === childSlideId)) return false;
+        return true;
+      });
+
       if (activeSlide.zoomFlowData.connections) {
         activeSlide.zoomFlowData.connections = activeSlide.zoomFlowData.connections.filter(c =>
           c.from !== removedNode.id && c.to !== removedNode.id
         );
       }
+      window.state.reorderSlidesHierarchically();
     }
 
     // Re-index remaining child slides
@@ -2121,6 +2213,44 @@ class SlideMakerApp {
     }, 2400);
   }
 
+  createDefaultZoomFlowData() {
+    return {
+      title: 'Flow Diagram',
+      subtitle: '',
+      layout: 'linear-horizontal',
+      theme: 'udes-emerald',
+      nodes: [
+        {
+          id: `node_${Date.now()}_1`,
+          title: 'Stage 1',
+          subtitle: '',
+          icon: 'fa-arrow-right',
+          color: '#00A350',
+          summary: 'Detailed explanation of this initial milestone.',
+          bullets: ['Key outcome and accomplishment']
+        },
+        {
+          id: `node_${Date.now()}_2`,
+          title: 'Stage 2',
+          subtitle: '',
+          icon: 'fa-arrow-right',
+          color: '#7FC23F',
+          summary: 'Detailed explanation of this middle milestone.',
+          bullets: ['Key outcome and accomplishment']
+        },
+        {
+          id: `node_${Date.now()}_3`,
+          title: 'Stage 3',
+          subtitle: '',
+          icon: 'fa-check',
+          color: '#38BDF8',
+          summary: 'Detailed explanation of this final milestone.',
+          bullets: ['Key outcome and accomplishment']
+        }
+      ]
+    };
+  }
+
   // --- 8. Zoom Flow Presentation Studio Controller ---
 
   openZoomFlowStudio(mode = 'new-slide') {
@@ -2133,10 +2263,10 @@ class SlideMakerApp {
       if (activeSlide && activeSlide.isZoomFlow && activeSlide.zoomFlowData) {
         this.currentZoomFlowData = JSON.parse(JSON.stringify(activeSlide.zoomFlowData));
       } else {
-        this.currentZoomFlowData = JSON.parse(JSON.stringify(window.zoomFlowEngine.TEMPLATES[0]));
+        this.currentZoomFlowData = this.createDefaultZoomFlowData();
       }
     } else {
-      this.currentZoomFlowData = JSON.parse(JSON.stringify(window.zoomFlowEngine.TEMPLATES[0]));
+      this.currentZoomFlowData = this.createDefaultZoomFlowData();
     }
 
     // Set theme dropdown
@@ -2149,7 +2279,6 @@ class SlideMakerApp {
     const subtitleInput = document.getElementById('zf-subtitle-input');
     if (subtitleInput) subtitleInput.value = this.currentZoomFlowData.subtitle || '';
 
-    this.renderZoomFlowTemplates();
     this.renderZoomFlowNodesList();
 
     modal.classList.add('is-open');
@@ -2440,15 +2569,68 @@ class SlideMakerApp {
         child.flowNodeStatus = node.status;
         child.flowNodeIndex = i;
         child.parentFlowSlideId = flowSlide.id;
+        child.rootFlowSlideId = flowSlide.rootFlowSlideId || flowSlide.id;
         child.isFlowChild = true;
         child.thumbnailType = 'text';
+
+        // Check if node has nested diagram
+        if (node.nestedDiagram && Array.isArray(node.nestedDiagram.nodes) && node.nestedDiagram.nodes.length > 0) {
+          child.hasNestedDiagram = true;
+          child.isZoomFlow = true;
+          child.isNestedFlow = true;
+          child.zoomFlowData = JSON.parse(JSON.stringify(node.nestedDiagram));
+          child.childSlideIds = child.childSlideIds || [];
+
+          const subNodes = node.nestedDiagram.nodes;
+          subNodes.forEach((subNode, sIdx) => {
+            let grandChild = window.state.slides.find(s => s.parentFlowSlideId === child.id && (s.flowNodeId === subNode.id || s.flowNodeIndex === sIdx));
+            if (!grandChild) {
+              grandChild = window.zoomFlowEngine.generateChildSlide(subNode, child.id, sIdx, subNodes.length, node.nestedDiagram.theme || themeKey);
+              grandChild.parentFlowSlideId = child.id;
+              grandChild.rootFlowSlideId = flowSlide.id;
+              grandChild.nestingLevel = 2;
+              grandChild.isFlowChild = true;
+              child.childSlideIds.push(grandChild.id);
+              const cIdx = window.state.slides.indexOf(child);
+              window.state.slides.splice(cIdx + 1 + sIdx, 0, grandChild);
+            } else {
+              grandChild.flowNodeTitle = subNode.title;
+              grandChild.flowNodeSubtitle = subNode.subtitle;
+              grandChild.flowNodeColor = subNode.color;
+              grandChild.flowNodeIcon = subNode.icon;
+              grandChild.flowNodeIndex = sIdx;
+            }
+          });
+        }
       } else {
         const newChild = window.zoomFlowEngine.generateChildSlide(node, flowSlide.id, i, nodes.length, themeKey);
+        newChild.nestingLevel = 1;
+        newChild.rootFlowSlideId = flowSlide.id;
         flowSlide.childSlideIds.push(newChild.id);
         const pIdx = window.state.slides.indexOf(flowSlide);
         window.state.slides.splice(pIdx + 1 + i, 0, newChild);
+
+        if (node.nestedDiagram && Array.isArray(node.nestedDiagram.nodes) && node.nestedDiagram.nodes.length > 0) {
+          newChild.hasNestedDiagram = true;
+          newChild.isZoomFlow = true;
+          newChild.isNestedFlow = true;
+          newChild.zoomFlowData = JSON.parse(JSON.stringify(node.nestedDiagram));
+          newChild.childSlideIds = newChild.childSlideIds || [];
+          const subNodes = node.nestedDiagram.nodes;
+          subNodes.forEach((subNode, sIdx) => {
+            const grandChild = window.zoomFlowEngine.generateChildSlide(subNode, newChild.id, sIdx, subNodes.length, node.nestedDiagram.theme || themeKey);
+            grandChild.parentFlowSlideId = newChild.id;
+            grandChild.rootFlowSlideId = flowSlide.id;
+            grandChild.nestingLevel = 2;
+            grandChild.isFlowChild = true;
+            newChild.childSlideIds.push(grandChild.id);
+            window.state.slides.splice(pIdx + 2 + sIdx, 0, grandChild);
+          });
+        }
       }
     });
+
+    window.state.reorderSlidesHierarchically();
 
     window.addEventListener('resize', () => {
       const modal = document.getElementById('modal-zoom-flow');
