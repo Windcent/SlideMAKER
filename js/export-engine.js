@@ -609,6 +609,11 @@ class ExportEngine {
     <button class="hud-btn" id="btn-fullscreen" title="Toggle Fullscreen (F)"><i class="fa-solid fa-expand"></i></button>
   </div>
 
+  <!-- Embedded Presentation Data for Direct Re-import & Editing in SlideMAKER -->
+  <script id="slidemaker-presentation-data" type="application/json">
+${jsonPayload}
+  </script>
+
   <script>
     const DATA = ${jsonPayload};
     let currentIndex = 0;
@@ -1496,21 +1501,203 @@ class ExportEngine {
 
   loadPresentationJson(file) {
     if (!file) return;
+
+    // Route HTML files directly to HTML import
+    if (file.name && (file.name.endsWith('.html') || file.name.endsWith('.htm'))) {
+      return this.importPresentationHtml(file);
+    }
+
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const success = window.state.loadFromJson(e.target.result);
-        if (success) {
-          const titleInput = document.getElementById('presentation-title-input');
-          if (titleInput) {
-            titleInput.value = window.state.title;
+        const text = e.target.result;
+        // Auto-detect if file contents are HTML despite non-HTML extension
+        if (typeof text === 'string' && (text.includes('<!DOCTYPE html') || text.includes('<html'))) {
+          const extracted = this.extractPresentationFromHtml(text);
+          if (extracted) {
+            window.state.loadFromJson(extracted);
+            this.syncLoadedPresentationUI();
+            return;
           }
+        }
+
+        const success = window.state.loadFromJson(text);
+        if (success) {
+          this.syncLoadedPresentationUI();
         }
       } catch (err) {
         alert('Error loading presentation file.');
       }
     };
     reader.readAsText(file);
+  }
+
+  // --- 7. Import Presentation from Standalone HTML Presentation ---
+
+  extractPresentationFromHtml(htmlContent) {
+    if (!htmlContent || typeof htmlContent !== 'string') return null;
+
+    // Strategy 1: Check for dedicated JSON script tag (<script id="slidemaker-presentation-data"> or <script id="slidemaker-data">)
+    try {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, 'text/html');
+      const dataScript = doc.querySelector('script#slidemaker-presentation-data, script#slidemaker-data');
+      if (dataScript && dataScript.textContent && dataScript.textContent.trim()) {
+        const parsed = JSON.parse(dataScript.textContent.trim());
+        if (parsed && Array.isArray(parsed.slides)) {
+          return parsed;
+        }
+      }
+    } catch (err) {
+      console.warn('DOMParser extraction failed, checking script tags directly:', err);
+    }
+
+    // Strategy 2: Bracket-balanced lexical scanner for `const DATA = ` or `let/var DATA = `
+    const match = /(?:const|let|var)\s+DATA\s*=\s*/.exec(htmlContent);
+    if (match) {
+      const startIndex = match.index + match[0].length;
+      const firstBrace = htmlContent.indexOf('{', startIndex);
+      if (firstBrace !== -1 && firstBrace - startIndex < 30) {
+        let depth = 0;
+        let inString = false;
+        let quote = '';
+        let escape = false;
+
+        for (let i = firstBrace; i < htmlContent.length; i++) {
+          const ch = htmlContent[i];
+
+          if (escape) {
+            escape = false;
+            continue;
+          }
+
+          if (ch === '\\') {
+            escape = true;
+            continue;
+          }
+
+          if (inString) {
+            if (ch === quote) {
+              inString = false;
+            }
+          } else {
+            if (ch === '"' || ch === "'" || ch === '`') {
+              inString = true;
+              quote = ch;
+            } else if (ch === '{') {
+              depth++;
+            } else if (ch === '}') {
+              depth--;
+              if (depth === 0) {
+                const jsonCandidate = htmlContent.substring(firstBrace, i + 1);
+                try {
+                  const parsed = JSON.parse(jsonCandidate);
+                  if (parsed && Array.isArray(parsed.slides)) {
+                    return parsed;
+                  }
+                } catch (e) {
+                  console.warn('JSON.parse failed on bracket-balanced candidate:', e);
+                }
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Strategy 3: Regex fallback matching `const DATA = ({.*?});\s*let currentIndex`
+    const regexMatch = /(?:const|let|var)\s+DATA\s*=\s*(\{[\s\S]*?\});\s*(?:let|var|const)\s+currentIndex/i.exec(htmlContent);
+    if (regexMatch && regexMatch[1]) {
+      try {
+        const parsed = JSON.parse(regexMatch[1]);
+        if (parsed && Array.isArray(parsed.slides)) {
+          return parsed;
+        }
+      } catch (e) {
+        console.warn('Regex fallback JSON.parse failed:', e);
+      }
+    }
+
+    // Strategy 4: Raw JSON fallback (in case a .slidemaker or .json file was provided)
+    try {
+      const trimmed = htmlContent.trim();
+      if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && Array.isArray(parsed.slides)) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+
+    return null;
+  }
+
+  importPresentationHtml(file) {
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const rawContent = e.target.result;
+        const presentationData = this.extractPresentationFromHtml(rawContent);
+
+        if (!presentationData || !Array.isArray(presentationData.slides) || presentationData.slides.length === 0) {
+          alert('Could not detect valid SlideMAKER presentation data in this HTML file.\n\nPlease make sure this is a standalone HTML presentation exported from SlideMAKER.');
+          return;
+        }
+
+        // Load into presentation state
+        const success = window.state.loadFromJson(presentationData);
+        if (success) {
+          this.syncLoadedPresentationUI();
+
+          // Notify user with feedback toast
+          const slideCount = window.state.slides.length;
+          const msg = `Imported "${window.state.title || 'Presentation'}" (${slideCount} slide${slideCount > 1 ? 's' : ''}) successfully!`;
+          if (window.app && typeof window.app.showToast === 'function') {
+            window.app.showToast(msg);
+          }
+        }
+      } catch (err) {
+        console.error('Error importing standalone HTML presentation:', err);
+        alert(`Failed to import presentation: ${err.message}`);
+      }
+    };
+
+    reader.onerror = (err) => {
+      console.error('FileReader error:', err);
+      alert('Could not read the selected file.');
+    };
+
+    reader.readAsText(file);
+  }
+
+  syncLoadedPresentationUI() {
+    // 1. Sync title input
+    const titleInput = document.getElementById('presentation-title-input');
+    if (titleInput) {
+      titleInput.value = window.state.title || 'Untitled Presentation';
+    }
+
+    // 2. Sync aspect ratio selector
+    const ratioSelect = document.getElementById('slide-aspect-ratio-select');
+    if (ratioSelect && window.state.aspectRatio) {
+      ratioSelect.value = window.state.aspectRatio;
+    }
+
+    // 3. Update canvas dimensions and re-render
+    if (window.canvasEngine) {
+      window.canvasEngine.updateStageDimensions();
+      window.canvasEngine.fitToWindow();
+      window.canvasEngine.renderActiveSlide();
+    }
+
+    // 4. Update slide manager thumbnails and notes
+    if (window.slideManager) {
+      window.slideManager.renderThumbnails();
+      window.slideManager.updateNotesContent();
+    }
   }
 
   // Progress Modal Helpers

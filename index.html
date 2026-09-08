@@ -46,10 +46,15 @@
     </div>
 
     <div class="header-right">
-      <input type="file" id="file-open-project" accept=".slidemaker,.json" style="display:none;">
+      <input type="file" id="file-open-project" accept=".slidemaker,.json,.html,.htm" style="display:none;">
+      <input type="file" id="file-import-html" accept=".html,.htm" style="display:none;">
       
-      <button id="btn-open-project" class="btn btn-secondary btn-sm" title="Open Project (.slidemaker / JSON)">
+      <button id="btn-open-project" class="btn btn-secondary btn-sm" title="Open Project (.slidemaker / JSON / HTML)">
         <i class="fa-solid fa-folder-open"></i> Open
+      </button>
+
+      <button id="btn-import-html" class="btn btn-secondary btn-sm" title="Import Standalone HTML Presentation (.html)">
+        <i class="fa-solid fa-file-import"></i> Import HTML
       </button>
 
       <button id="btn-save-project" class="btn btn-secondary btn-sm" title="Save Project to Computer (Ctrl+S)">

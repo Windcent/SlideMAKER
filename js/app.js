@@ -104,12 +104,28 @@ class SlideMakerApp {
       openFileInput.addEventListener('change', (e) => {
         if (e.target.files && e.target.files[0]) {
           window.exportEngine.loadPresentationJson(e.target.files[0]);
+          e.target.value = '';
         }
       });
     }
 
     document.getElementById('btn-open-project')?.addEventListener('click', () => {
       openFileInput?.click();
+    });
+
+    // Standalone HTML Import Input
+    const importHtmlInput = document.getElementById('file-import-html');
+    if (importHtmlInput) {
+      importHtmlInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files[0]) {
+          window.exportEngine.importPresentationHtml(e.target.files[0]);
+          e.target.value = '';
+        }
+      });
+    }
+
+    document.getElementById('btn-import-html')?.addEventListener('click', () => {
+      importHtmlInput?.click();
     });
 
     // Undo / Redo buttons
